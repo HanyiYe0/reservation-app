@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, IconButton, Typography, Paper } from '@mui/material';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore, startOfDay } from 'date-fns';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
@@ -14,6 +14,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
   onDateSelect,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(selectedDate));
+  const today = startOfDay(new Date());
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -21,17 +22,29 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
   });
 
   const handlePrevMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
+    const newMonth = subMonths(currentMonth, 1);
+    if (!isBefore(startOfMonth(newMonth), startOfMonth(today))) {
+      setCurrentMonth(newMonth);
+    }
   };
 
   const handleNextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1));
   };
 
+  const handleDateClick = (day: Date) => {
+    if (!isBefore(day, today)) {
+      onDateSelect(day);
+    }
+  };
+
   return (
     <Paper sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <IconButton onClick={handlePrevMonth}>
+        <IconButton 
+          onClick={handlePrevMonth}
+          disabled={isBefore(startOfMonth(subMonths(currentMonth, 1)), startOfMonth(today))}
+        >
           <ChevronLeftIcon />
         </IconButton>
         <Typography variant="h6">
@@ -53,29 +66,41 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({
             {day}
           </Typography>
         ))}
-        {days.map((day) => (
-          <Box
-            key={day.toISOString()}
-            onClick={() => onDateSelect(day)}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: 36,
-              cursor: 'pointer',
-              borderRadius: 1,
-              bgcolor: isSameDay(day, selectedDate) ? 'primary.main' : 'transparent',
-              color: isSameDay(day, selectedDate) ? 'white' : 'inherit',
-              '&:hover': {
-                bgcolor: isSameDay(day, selectedDate) ? 'primary.dark' : 'action.hover',
-              },
-            }}
-          >
-            <Typography variant="body2">
-              {format(day, 'd')}
-            </Typography>
-          </Box>
-        ))}
+        {days.map((day) => {
+          const isPastDate = isBefore(day, today);
+          return (
+            <Box
+              key={day.toISOString()}
+              onClick={() => !isPastDate && handleDateClick(day)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: 36,
+                cursor: isPastDate ? 'not-allowed' : 'pointer',
+                borderRadius: 1,
+                bgcolor: isSameDay(day, selectedDate) ? 'primary.main' : 'transparent',
+                color: isPastDate 
+                  ? 'text.disabled' 
+                  : isSameDay(day, selectedDate) 
+                  ? 'white' 
+                  : 'inherit',
+                opacity: isPastDate ? 0.5 : 1,
+                '&:hover': {
+                  bgcolor: isPastDate 
+                    ? 'transparent' 
+                    : isSameDay(day, selectedDate) 
+                    ? 'primary.dark' 
+                    : 'action.hover',
+                },
+              }}
+            >
+              <Typography variant="body2">
+                {format(day, 'd')}
+              </Typography>
+            </Box>
+          );
+        })}
       </Box>
     </Paper>
   );
