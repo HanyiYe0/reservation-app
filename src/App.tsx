@@ -40,6 +40,8 @@ interface Appointment {
   time: string;
   barberName: string;
   profileImage: string;
+  isBooked?: boolean;
+  bookedBy?: string;
 }
 
 interface AppointmentsByDate {
@@ -71,10 +73,15 @@ const generateAppointments = (): AppointmentsByDate => {
       usedTimeSlots.add(timeSlot);
       const barber = BARBERS[Math.floor(Math.random() * BARBERS.length)];
       
+      // Randomly mark some appointments as booked
+      const isBooked = Math.random() < 0.3; // 30% chance of being booked
+      
       dayAppointments.push({
         time: timeSlot,
         barberName: barber.name,
         profileImage: barber.profileImage,
+        isBooked,
+        bookedBy: isBooked ? 'Another Client' : undefined,
       });
     }
     
@@ -93,10 +100,29 @@ const generateAppointments = (): AppointmentsByDate => {
 
 function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const allAppointments = useMemo(() => generateAppointments(), []);
+  const [appointments, setAppointments] = useState<AppointmentsByDate>(() => generateAppointments());
   
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
-  const dayAppointments = allAppointments[dateKey] || [];
+  const dayAppointments = appointments[dateKey] || [];
+
+  const handleBookingSuccess = (dateKey: string, timeSlot: string, userName: string) => {
+    setAppointments((prevAppointments) => {
+      const newAppointments = { ...prevAppointments };
+      const dayAppointments = [...(newAppointments[dateKey] || [])];
+      
+      const appointmentIndex = dayAppointments.findIndex(apt => apt.time === timeSlot);
+      if (appointmentIndex !== -1) {
+        dayAppointments[appointmentIndex] = {
+          ...dayAppointments[appointmentIndex],
+          isBooked: true,
+          bookedBy: userName,
+        };
+      }
+      
+      newAppointments[dateKey] = dayAppointments;
+      return newAppointments;
+    });
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -105,7 +131,7 @@ function App() {
         <Header />
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
-            {dayAppointments.length > 0 && (
+            {dayAppointments.length > 0 && !dayAppointments[0].isBooked && (
               <Box sx={{ mb: 4 }}>
                 <NextAppointmentCard
                   barberName={dayAppointments[0].barberName}
@@ -114,7 +140,12 @@ function App() {
                 />
               </Box>
             )}
-            <AppointmentList appointments={dayAppointments} />
+            <AppointmentList 
+              appointments={dayAppointments}
+              onBookingSuccess={(timeSlot: string, userName: string) => 
+                handleBookingSuccess(dateKey, timeSlot, userName)
+              }
+            />
           </Grid>
           <Grid item xs={12} md={4}>
             <CalendarWidget
