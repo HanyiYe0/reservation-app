@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, Card, CardContent, Avatar, Button, Snackbar, Alert } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import BookingModal, { BookingFormData } from './BookingModal';
 
 interface Appointment {
   time: string;
@@ -55,11 +54,16 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onBookCl
 interface AppointmentListProps {
   appointments: Appointment[];
   onBookingSuccess: (timeSlot: string, userName: string) => void;
+  selectedAppointment: Appointment | null;
+  onAppointmentSelect: (appointment: Appointment) => void;
 }
 
-const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onBookingSuccess }) => {
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [showModal, setShowModal] = useState(false);
+const AppointmentList: React.FC<AppointmentListProps> = ({
+  appointments,
+  onBookingSuccess,
+  selectedAppointment,
+  onAppointmentSelect,
+}) => {
   const [notification, setNotification] = useState<{
     show: boolean;
     message: string;
@@ -77,32 +81,6 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onBooki
     (apt) => apt.time.includes('PM')
   );
 
-  const handleBookClick = (appointment: Appointment) => {
-    setSelectedAppointment(appointment);
-    setShowModal(true);
-  };
-
-  const handleBookingSubmit = async (bookingData: BookingFormData) => {
-    try {
-      // Here you would typically make an API call to your backend
-      // For now, we'll simulate a successful booking
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Call the success callback
-      onBookingSuccess(bookingData.time, bookingData.name);
-      
-      setNotification({
-        show: true,
-        message: `Your booking with ${bookingData.barberName} at ${bookingData.time} has been confirmed!`,
-        type: 'success',
-      });
-      
-      setShowModal(false);
-    } catch (error) {
-      throw new Error('This slot is no longer available. Please select another time.');
-    }
-  };
-
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
@@ -113,7 +91,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onBooki
           <AppointmentCard
             key={index}
             appointment={apt}
-            onBookClick={handleBookClick}
+            onBookClick={onAppointmentSelect}
           />
         ))}
       </Box>
@@ -126,19 +104,10 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onBooki
           <AppointmentCard
             key={index}
             appointment={apt}
-            onBookClick={handleBookClick}
+            onBookClick={onAppointmentSelect}
           />
         ))}
       </Box>
-
-      {selectedAppointment && (
-        <BookingModal
-          open={showModal}
-          onClose={() => setShowModal(false)}
-          appointment={selectedAppointment}
-          onSubmit={handleBookingSubmit}
-        />
-      )}
 
       <Snackbar
         open={notification.show}

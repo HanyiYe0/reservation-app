@@ -5,6 +5,7 @@ import Header from './components/Header';
 import NextAppointmentCard from './components/NextAppointmentCard';
 import AppointmentList from './components/AppointmentList';
 import CalendarWidget from './components/CalendarWidget';
+import BookingModal, { BookingFormData } from './components/BookingModal';
 
 const theme = createTheme({
   palette: {
@@ -101,9 +102,14 @@ const generateAppointments = (): AppointmentsByDate => {
 function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<AppointmentsByDate>(() => generateAppointments());
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showModal, setShowModal] = useState(false);
   
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const dayAppointments = appointments[dateKey] || [];
+
+  // Get the next available appointment
+  const nextAppointment = dayAppointments.length > 0 ? dayAppointments[0] : null;
 
   const handleBookingSuccess = (dateKey: string, timeSlot: string, userName: string) => {
     setAppointments((prevAppointments) => {
@@ -124,6 +130,26 @@ function App() {
     });
   };
 
+  const handleAppointmentClick = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setShowModal(true);
+  };
+
+  const handleBookingSubmit = async (bookingData: BookingFormData) => {
+    try {
+      // Here you would typically make an API call to your backend
+      // For now, we'll simulate a successful booking
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      handleBookingSuccess(dateKey, bookingData.time, bookingData.name);
+      setShowModal(false);
+      
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(new Error('This slot is no longer available. Please select another time.'));
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -131,12 +157,15 @@ function App() {
         <Header />
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
-            {dayAppointments.length > 0 && !dayAppointments[0].isBooked && (
+            {nextAppointment && (
               <Box sx={{ mb: 4 }}>
                 <NextAppointmentCard
-                  barberName={dayAppointments[0].barberName}
-                  time={dayAppointments[0].time}
-                  profileImage={dayAppointments[0].profileImage}
+                  barberName={nextAppointment.barberName}
+                  time={nextAppointment.time}
+                  profileImage={nextAppointment.profileImage}
+                  isBooked={nextAppointment.isBooked}
+                  bookedBy={nextAppointment.bookedBy}
+                  onBookClick={nextAppointment.isBooked ? undefined : () => handleAppointmentClick(nextAppointment)}
                 />
               </Box>
             )}
@@ -145,6 +174,8 @@ function App() {
               onBookingSuccess={(timeSlot: string, userName: string) => 
                 handleBookingSuccess(dateKey, timeSlot, userName)
               }
+              selectedAppointment={selectedAppointment}
+              onAppointmentSelect={handleAppointmentClick}
             />
           </Grid>
           <Grid item xs={12} md={4}>
@@ -154,6 +185,15 @@ function App() {
             />
           </Grid>
         </Grid>
+
+        {selectedAppointment && (
+          <BookingModal
+            open={showModal}
+            onClose={() => setShowModal(false)}
+            appointment={selectedAppointment}
+            onSubmit={handleBookingSubmit}
+          />
+        )}
       </Container>
     </ThemeProvider>
   );

@@ -1,17 +1,23 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography, Avatar } from '@mui/material';
+import { Box, Card, CardContent, Typography, Avatar, Button } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 interface NextAppointmentCardProps {
   barberName: string;
   time: string;
   profileImage: string;
+  isBooked?: boolean;
+  bookedBy?: string;
+  onBookClick?: () => void;
 }
 
 const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
   barberName,
   time,
   profileImage,
+  isBooked,
+  bookedBy,
+  onBookClick,
 }) => {
   return (
     <Card sx={{ mb: 4, boxShadow: 3 }}>
@@ -35,7 +41,23 @@ const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
                 {time}
               </Typography>
             </Box>
+            {isBooked && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                Booked by {bookedBy}
+              </Typography>
+            )}
           </Box>
+          {onBookClick && (
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              onClick={onBookClick}
+              disabled={isBooked}
+            >
+              {isBooked ? 'Booked' : 'Book Now'}
+            </Button>
+          )}
         </Box>
       </CardContent>
     </Card>
