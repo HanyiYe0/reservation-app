@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Box, Container, Grid, Button } from '@mui/material';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { SignInButton } from '@clerk/nextjs';
 import Header from './Header';
 import NextAppointmentCard from './NextAppointmentCard';
@@ -11,6 +11,7 @@ import CalendarWidget from './CalendarWidget';
 import { format } from 'date-fns';
 import BookingModal from './BookingModal';
 import React from 'react';
+import UserReservations from './UserReservations';
 
 // Move these to a separate file later
 const BARBERS = [
@@ -99,12 +100,14 @@ const generateInitialAppointments = (date: Date): Appointment[] => {
 export default function ReservationApp() {
   console.log('ReservationApp rendering');
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
   const [selectedDate, setSelectedDate] = useState(() => {
     console.log('Initializing selectedDate');
     return new Date();
   });
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showReservations, setShowReservations] = useState(false);
   const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentsByDate>(() => {
     console.log('Initializing appointmentsByDate');
     const today = new Date();
@@ -115,6 +118,22 @@ export default function ReservationApp() {
       [todayKey]: initialAppointments
     };
   });
+
+  // Get all user's reservations
+  const userReservations = React.useMemo(() => {
+    if (!isSignedIn || !user) return [];
+
+    return Object.entries(appointmentsByDate).flatMap(([dateStr, appointments]) => {
+      return appointments
+        .filter(apt => apt.isBooked && apt.bookedBy === user.fullName)
+        .map(apt => ({
+          date: new Date(dateStr),
+          time: apt.time,
+          barberName: apt.barberName,
+          profileImage: apt.profileImage
+        }));
+    });
+  }, [appointmentsByDate, isSignedIn, user]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   console.log('Current dateKey:', dateKey);
@@ -194,6 +213,17 @@ export default function ReservationApp() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+        {isSignedIn && (
+          <Button
+            variant="outlined"
+            onClick={() => setShowReservations(true)}
+            sx={{ mr: 2 }}
+          >
+            My Reservations
+          </Button>
+        )}
+      </Box>
       <Header />
       <Grid container spacing={4}>
         <Grid item xs={12} md={8}>
@@ -231,10 +261,16 @@ export default function ReservationApp() {
           onClose={() => setShowModal(false)}
           appointment={selectedAppointment}
           onSubmit={async (bookingData) => {
-            handleBookingSuccess(bookingData.time, bookingData.name);
+            handleBookingSuccess(bookingData.time, user?.fullName || 'Unknown User');
           }}
         />
       )}
+
+      <UserReservations
+        open={showReservations}
+        onClose={() => setShowReservations(false)}
+        reservations={userReservations}
+      />
     </Container>
   );
 } 
