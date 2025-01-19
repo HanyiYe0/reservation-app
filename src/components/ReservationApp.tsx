@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Container, Grid } from '@mui/material';
+import { Box, Container, Grid, Button } from '@mui/material';
+import { useAuth } from '@clerk/nextjs';
+import { SignInButton } from '@clerk/nextjs';
 import Header from './Header';
 import NextAppointmentCard from './NextAppointmentCard';
 import AppointmentList from './AppointmentList';
@@ -36,6 +38,7 @@ interface Appointment {
 }
 
 export default function ReservationApp() {
+  const { isSignedIn } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -53,6 +56,9 @@ export default function ReservationApp() {
   ]);
 
   const handleAppointmentSelect = (appointment: Appointment) => {
+    if (!isSignedIn) {
+      return;
+    }
     setSelectedAppointment(appointment);
     setShowModal(true);
   };
@@ -73,6 +79,36 @@ export default function ReservationApp() {
     setShowModal(false);
   };
 
+  const renderBookButton = (appointment: Appointment) => {
+    if (appointment.isBooked) {
+      return (
+        <Button variant="contained" disabled>
+          Booked
+        </Button>
+      );
+    }
+
+    if (!isSignedIn) {
+      return (
+        <SignInButton mode="modal">
+          <Button variant="contained" color="primary">
+            Sign in to Book
+          </Button>
+        </SignInButton>
+      );
+    }
+
+    return (
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => handleAppointmentSelect(appointment)}
+      >
+        Book Now
+      </Button>
+    );
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Header />
@@ -85,7 +121,7 @@ export default function ReservationApp() {
               profileImage={appointments[0].profileImage}
               isBooked={appointments[0].isBooked}
               bookedBy={appointments[0].bookedBy}
-              onBookClick={() => handleAppointmentSelect(appointments[0])}
+              customBookButton={renderBookButton(appointments[0])}
             />
           </Box>
           <AppointmentList 
@@ -93,6 +129,7 @@ export default function ReservationApp() {
             onBookingSuccess={handleBookingSuccess}
             selectedAppointment={selectedAppointment}
             onAppointmentSelect={handleAppointmentSelect}
+            renderBookButton={renderBookButton}
           />
         </Grid>
         <Grid item xs={12} md={4}>

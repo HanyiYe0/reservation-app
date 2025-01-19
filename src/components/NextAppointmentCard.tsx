@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography, Avatar, Button } from '@mui/material';
+import { Box, Card, CardContent, Typography, Avatar } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 interface NextAppointmentCardProps {
@@ -8,7 +8,7 @@ interface NextAppointmentCardProps {
   profileImage: string;
   isBooked?: boolean;
   bookedBy?: string;
-  onBookClick?: () => void;
+  customBookButton?: React.ReactNode;
 }
 
 const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
@@ -17,7 +17,7 @@ const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
   profileImage,
   isBooked,
   bookedBy,
-  onBookClick,
+  customBookButton,
 }) => {
   return (
     <Card sx={{ mb: 4, boxShadow: 3 }}>
@@ -47,17 +47,7 @@ const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
               </Typography>
             )}
           </Box>
-          {onBookClick && (
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              onClick={onBookClick}
-              disabled={isBooked}
-            >
-              {isBooked ? 'Booked' : 'Book Now'}
-            </Button>
-          )}
+          {customBookButton}
         </Box>
       </CardContent>
     </Card>

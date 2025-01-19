@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, Card, CardContent, Avatar, Button, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Card, CardContent, Avatar, Snackbar, Alert } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 interface Appointment {
@@ -12,10 +12,10 @@ interface Appointment {
 
 interface AppointmentCardProps {
   appointment: Appointment;
-  onBookClick: (appointment: Appointment) => void;
+  renderBookButton: (appointment: Appointment) => React.ReactNode;
 }
 
-const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onBookClick }) => (
+const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, renderBookButton }) => (
   <Card sx={{ mb: 2 }}>
     <CardContent>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -38,14 +38,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, onBookCl
             </Typography>
           )}
         </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          disabled={appointment.isBooked}
-          onClick={() => onBookClick(appointment)}
-        >
-          {appointment.isBooked ? 'Booked' : 'Book'}
-        </Button>
+        {renderBookButton(appointment)}
       </Box>
     </CardContent>
   </Card>
@@ -56,6 +49,7 @@ interface AppointmentListProps {
   onBookingSuccess: (timeSlot: string, userName: string) => void;
   selectedAppointment: Appointment | null;
   onAppointmentSelect: (appointment: Appointment) => void;
+  renderBookButton: (appointment: Appointment) => React.ReactNode;
 }
 
 const AppointmentList: React.FC<AppointmentListProps> = ({
@@ -63,6 +57,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
   onBookingSuccess,
   selectedAppointment,
   onAppointmentSelect,
+  renderBookButton,
 }) => {
   const [notification, setNotification] = useState<{
     show: boolean;
@@ -91,7 +86,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
           <AppointmentCard
             key={index}
             appointment={apt}
-            onBookClick={onAppointmentSelect}
+            renderBookButton={renderBookButton}
           />
         ))}
       </Box>
@@ -104,7 +99,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
           <AppointmentCard
             key={index}
             appointment={apt}
-            onBookClick={onAppointmentSelect}
+            renderBookButton={renderBookButton}
           />
         ))}
       </Box>

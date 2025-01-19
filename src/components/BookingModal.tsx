@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import {
-  Modal,
   Box,
   Typography,
   TextField,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Paper,
   Alert,
 } from '@mui/material';
+import { Modal as BaseModal } from '@mui/base/Modal';
 
 interface BookingModalProps {
   open: boolean;
@@ -69,12 +66,26 @@ const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        Book Appointment with {appointment.barberName}
-      </DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent>
+    <BaseModal
+      open={open}
+      onClose={onClose}
+      aria-labelledby="booking-modal-title"
+    >
+      <Box sx={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: { xs: '90%', sm: '500px' },
+        bgcolor: 'background.paper',
+        boxShadow: 24,
+        p: 4,
+        borderRadius: 1,
+      }}>
+        <Typography id="booking-modal-title" variant="h6" component="h2" gutterBottom>
+          Book Appointment with {appointment.barberName}
+        </Typography>
+        <form onSubmit={handleSubmit}>
           <Box sx={{ mb: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
               Time: {appointment.time}
@@ -113,19 +124,21 @@ const BookingModal: React.FC<BookingModalProps> = ({
             required
             margin="normal"
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Booking...' : 'Confirm Booking'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Booking...' : 'Confirm Booking'}
+            </Button>
+          </Box>
+        </form>
+      </Box>
+    </BaseModal>
   );
 };
 

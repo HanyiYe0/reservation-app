@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Container, Grid, Box } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Container, Grid, Box, Button } from '@mui/material';
 import { format } from 'date-fns';
 import Header from './components/Header';
 import NextAppointmentCard from './components/NextAppointmentCard';
@@ -165,7 +165,13 @@ function App() {
                   profileImage={nextAppointment.profileImage}
                   isBooked={nextAppointment.isBooked}
                   bookedBy={nextAppointment.bookedBy}
-                  onBookClick={nextAppointment.isBooked ? undefined : () => handleAppointmentClick(nextAppointment)}
+                  customBookButton={
+                    nextAppointment.isBooked ? (
+                      <Button variant="contained" disabled>Booked</Button>
+                    ) : (
+                      <Button variant="contained" onClick={() => handleAppointmentClick(nextAppointment)}>Book Now</Button>
+                    )
+                  }
                 />
               </Box>
             )}
@@ -176,6 +182,13 @@ function App() {
               }
               selectedAppointment={selectedAppointment}
               onAppointmentSelect={handleAppointmentClick}
+              renderBookButton={(appointment) => 
+                appointment.isBooked ? (
+                  <Button variant="contained" disabled>Booked</Button>
+                ) : (
+                  <Button variant="contained" onClick={() => handleAppointmentClick(appointment)}>Book Now</Button>
+                )
+              }
             />
           </Grid>
           <Grid item xs={12} md={4}>
