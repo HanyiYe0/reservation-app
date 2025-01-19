@@ -10,6 +10,7 @@ import AppointmentList from './AppointmentList';
 import CalendarWidget from './CalendarWidget';
 import { format } from 'date-fns';
 import BookingModal from './BookingModal';
+import React from 'react';
 
 // Move these to a separate file later
 const BARBERS = [
@@ -37,23 +38,104 @@ interface Appointment {
   bookedBy?: string;
 }
 
+interface AppointmentsByDate {
+  [key: string]: Appointment[];
+}
+
+// Debug wrapper for seededRandom
+const seededRandom = (seed: string) => {
+  console.log('Generating seeded random for:', seed);
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const result = (hash >>> 0) / 4294967296;
+  console.log('Seeded random result:', result);
+  return result;
+};
+
+// Generate initial appointments for each date
+const generateInitialAppointments = (date: Date): Appointment[] => {
+  console.log('Generating appointments for date:', date);
+  const dateStr = format(date, 'yyyy-MM-dd');
+  const appointments: Appointment[] = [];
+  const numAppointments = Math.floor(seededRandom(`${dateStr}-count`) * 5) + 8;
+  console.log('Number of appointments to generate:', numAppointments);
+
+  try {
+    const usedTimeSlots = new Set<string>();
+    const availableTimeSlots = [...TIME_SLOTS];
+
+    for (let i = 0; i < numAppointments && availableTimeSlots.length > 0; i++) {
+      const timeIndex = Math.floor(seededRandom(`${dateStr}-time-${i}`) * availableTimeSlots.length);
+      const timeSlot = availableTimeSlots.splice(timeIndex, 1)[0];
+      const barberIndex = Math.floor(seededRandom(`${dateStr}-barber-${i}`) * BARBERS.length);
+      const barber = BARBERS[barberIndex];
+
+      appointments.push({
+        time: timeSlot,
+        barberName: barber.name,
+        profileImage: barber.profileImage,
+        isBooked: false,
+      });
+    }
+
+    const sortedAppointments = appointments.sort((a, b) => {
+      const timeA = new Date(`1970/01/01 ${a.time}`).getTime();
+      const timeB = new Date(`1970/01/01 ${b.time}`).getTime();
+      return timeA - timeB;
+    });
+
+    console.log('Generated appointments:', sortedAppointments);
+    return sortedAppointments;
+  } catch (error) {
+    console.error('Error generating appointments:', error);
+    return [];
+  }
+};
+
 export default function ReservationApp() {
+  console.log('ReservationApp rendering');
   const { isSignedIn } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    console.log('Initializing selectedDate');
+    return new Date();
+  });
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    {
-      time: '09:00 AM',
-      barberName: BARBERS[0].name,
-      profileImage: BARBERS[0].profileImage,
-    },
-    {
-      time: '10:00 AM',
-      barberName: BARBERS[1].name,
-      profileImage: BARBERS[1].profileImage,
-    },
-  ]);
+  const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentsByDate>(() => {
+    console.log('Initializing appointmentsByDate');
+    const today = new Date();
+    const todayKey = format(today, 'yyyy-MM-dd');
+    const initialAppointments = generateInitialAppointments(today);
+    console.log('Initial appointments generated:', initialAppointments);
+    return {
+      [todayKey]: initialAppointments
+    };
+  });
+
+  const dateKey = format(selectedDate, 'yyyy-MM-dd');
+  console.log('Current dateKey:', dateKey);
+  
+  const currentAppointments = React.useMemo(() => {
+    console.log('Calculating currentAppointments for dateKey:', dateKey);
+    console.log('Current appointmentsByDate:', appointmentsByDate);
+    
+    if (!appointmentsByDate[dateKey]) {
+      console.log('No appointments found for date, generating new ones');
+      const newAppointments = generateInitialAppointments(selectedDate);
+      setAppointmentsByDate(prev => ({
+        ...prev,
+        [dateKey]: newAppointments
+      }));
+      return newAppointments;
+    }
+    
+    console.log('Returning existing appointments for date');
+    return appointmentsByDate[dateKey];
+  }, [dateKey, appointmentsByDate]);
 
   const handleAppointmentSelect = (appointment: Appointment) => {
     if (!isSignedIn) {
@@ -64,8 +146,9 @@ export default function ReservationApp() {
   };
 
   const handleBookingSuccess = (timeSlot: string, userName: string) => {
-    setAppointments(prevAppointments => {
-      return prevAppointments.map(apt => {
+    setAppointmentsByDate(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey].map(apt => {
         if (apt.time === timeSlot) {
           return {
             ...apt,
@@ -74,8 +157,8 @@ export default function ReservationApp() {
           };
         }
         return apt;
-      });
-    });
+      })
+    }));
     setShowModal(false);
   };
 
@@ -114,18 +197,20 @@ export default function ReservationApp() {
       <Header />
       <Grid container spacing={4}>
         <Grid item xs={12} md={8}>
-          <Box sx={{ mb: 4 }}>
-            <NextAppointmentCard
-              barberName={appointments[0].barberName}
-              time={appointments[0].time}
-              profileImage={appointments[0].profileImage}
-              isBooked={appointments[0].isBooked}
-              bookedBy={appointments[0].bookedBy}
-              customBookButton={renderBookButton(appointments[0])}
-            />
-          </Box>
+          {currentAppointments.length > 0 && (
+            <Box sx={{ mb: 4 }}>
+              <NextAppointmentCard
+                barberName={currentAppointments[0].barberName}
+                time={currentAppointments[0].time}
+                profileImage={currentAppointments[0].profileImage}
+                isBooked={currentAppointments[0].isBooked}
+                bookedBy={currentAppointments[0].bookedBy}
+                customBookButton={renderBookButton(currentAppointments[0])}
+              />
+            </Box>
+          )}
           <AppointmentList 
-            appointments={appointments}
+            appointments={currentAppointments}
             onBookingSuccess={handleBookingSuccess}
             selectedAppointment={selectedAppointment}
             onAppointmentSelect={handleAppointmentSelect}
