@@ -14,6 +14,9 @@ export default function SignUpPage() {
       }}
     >
       <SignUp
+        afterSignUpUrl="/"
+        redirectUrl="/"
+        signInUrl="/sign-in"
         appearance={{
           elements: {
             rootBox: {
@@ -23,6 +26,10 @@ export default function SignUpPage() {
             card: {
               border: '1px solid #e0e0e0',
               borderRadius: '8px',
+            },
+            formButtonPrimary: {
+              backgroundColor: '#2196f3',
+              '&:hover': { backgroundColor: '#1976d2' },
             },
           },
         }}
