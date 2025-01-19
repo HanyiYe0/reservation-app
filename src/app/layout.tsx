@@ -10,8 +10,9 @@ import {
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AppBar, Toolbar, Typography, Box } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import { theme } from '../theme';
+import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -32,14 +33,28 @@ export default function RootLayout({
                   <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
                     Reservation App
                   </Typography>
+                  <SignedIn>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Button
+                        color="inherit"
+                        onClick={() => {
+                          // This will be handled by the ReservationApp component
+                          const event = new CustomEvent('openReservations');
+                          window.dispatchEvent(event);
+                        }}
+                      >
+                        My Reservations
+                      </Button>
+                      <UserButton />
+                    </Box>
+                  </SignedIn>
                   <SignedOut>
                     <SignInButton mode="modal">
-                      <button className="btn">Sign in</button>
+                      <Button color="inherit">
+                        Sign in
+                      </Button>
                     </SignInButton>
                   </SignedOut>
-                  <SignedIn>
-                    <UserButton afterSignOutUrl="/sign-in" />
-                  </SignedIn>
                 </Toolbar>
               </AppBar>
               {children}

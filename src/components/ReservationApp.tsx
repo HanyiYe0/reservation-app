@@ -119,6 +119,18 @@ export default function ReservationApp() {
     };
   });
 
+  // Add event listener for opening reservations
+  React.useEffect(() => {
+    const handleOpenReservations = () => {
+      setShowReservations(true);
+    };
+
+    window.addEventListener('openReservations', handleOpenReservations);
+    return () => {
+      window.removeEventListener('openReservations', handleOpenReservations);
+    };
+  }, []);
+
   // Get all user's reservations
   const userReservations = React.useMemo(() => {
     if (!isSignedIn || !user) return [];
@@ -213,17 +225,6 @@ export default function ReservationApp() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        {isSignedIn && (
-          <Button
-            variant="outlined"
-            onClick={() => setShowReservations(true)}
-            sx={{ mr: 2 }}
-          >
-            My Reservations
-          </Button>
-        )}
-      </Box>
       <Header />
       <Grid container spacing={4}>
         <Grid item xs={12} md={8}>
