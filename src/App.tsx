@@ -5,7 +5,7 @@ import Header from './components/Header';
 import NextAppointmentCard from './components/NextAppointmentCard';
 import AppointmentList from './components/AppointmentList';
 import CalendarWidget from './components/CalendarWidget';
-import BookingModal from './components/BookingModal';
+import BookingModal, { BookingFormData } from './components/BookingModal';
 
 const theme = createTheme({
   palette: {
@@ -135,13 +135,13 @@ function App() {
     setShowModal(true);
   };
 
-  const handleBookingSubmit = async (bookingData: { time: string }) => {
+  const handleBookingSubmit = async (bookingData: BookingFormData) => {
     try {
       // Here you would typically make an API call to your backend
       // For now, we'll simulate a successful booking
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      handleBookingSuccess(dateKey, bookingData.time, 'Another Client');
+      handleBookingSuccess(dateKey, bookingData.time, bookingData.name);
       setShowModal(false);
       
       return Promise.resolve();
