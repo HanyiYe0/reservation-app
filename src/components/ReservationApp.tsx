@@ -193,6 +193,48 @@ export default function ReservationApp() {
     setShowModal(false);
   };
 
+  const handleCancelReservation = (date: Date, time: string) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    console.log('Cancelling reservation:', { dateKey, time });
+    console.log('Current appointments:', appointmentsByDate[dateKey]);
+    
+    setAppointmentsByDate(prev => {
+      // If no appointments exist for this date, generate them first
+      if (!prev[dateKey]) {
+        console.log('No appointments found for date, generating new ones');
+        const newAppointments = generateInitialAppointments(date);
+        return {
+          ...prev,
+          [dateKey]: newAppointments.map(apt => {
+            if (apt.time === time) {
+              return { ...apt, isBooked: false, bookedBy: undefined };
+            }
+            return apt;
+          })
+        };
+      }
+      
+      // Update the appointments for this date
+      const updatedAppointments = prev[dateKey].map(apt => {
+        if (apt.time === time) {
+          console.log('Found appointment to cancel:', apt);
+          return {
+            ...apt,
+            isBooked: false,
+            bookedBy: undefined
+          };
+        }
+        return apt;
+      });
+      
+      console.log('Updated appointments:', updatedAppointments);
+      return {
+        ...prev,
+        [dateKey]: updatedAppointments
+      };
+    });
+  };
+
   const renderBookButton = (appointment: Appointment) => {
     if (appointment.isBooked) {
       return (
@@ -271,6 +313,7 @@ export default function ReservationApp() {
         open={showReservations}
         onClose={() => setShowReservations(false)}
         reservations={userReservations}
+        onCancelReservation={handleCancelReservation}
       />
     </Container>
   );

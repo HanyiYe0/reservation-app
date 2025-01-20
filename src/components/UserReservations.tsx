@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   List,
   ListItem,
@@ -9,6 +9,8 @@ import {
   Box,
   IconButton,
   Paper,
+  Button,
+  ListItemSecondaryAction
 } from '@mui/material';
 import { Modal } from '@mui/base/Modal';
 import CloseIcon from '@mui/icons-material/Close';
@@ -25,14 +27,29 @@ interface UserReservationsProps {
   open: boolean;
   onClose: () => void;
   reservations: Reservation[];
+  onCancelReservation: (date: Date, time: string) => void;
 }
 
-export default function UserReservations({ open, onClose, reservations }: UserReservationsProps) {
+export default function UserReservations({ open, onClose, reservations, onCancelReservation }: UserReservationsProps) {
+  const [cancelledReservations, setCancelledReservations] = useState<string[]>([]);
+
   const sortedReservations = [...reservations].sort((a, b) => {
     const dateTimeA = new Date(`${format(a.date, 'yyyy/MM/dd')} ${a.time}`);
     const dateTimeB = new Date(`${format(b.date, 'yyyy/MM/dd')} ${b.time}`);
     return dateTimeA.getTime() - dateTimeB.getTime();
   });
+
+  const handleCancel = (date: Date, time: string) => {
+    console.log('Cancel button clicked:', { date, time });
+    const key = `${format(date, 'yyyy-MM-dd')}-${time}`;
+    setCancelledReservations(prev => [...prev, key]);
+    onCancelReservation(date, time);
+  };
+
+  const isReservationCancelled = (date: Date, time: string) => {
+    const key = `${format(date, 'yyyy-MM-dd')}-${time}`;
+    return cancelledReservations.includes(key);
+  };
 
   return (
     <Modal 
@@ -96,6 +113,17 @@ export default function UserReservations({ open, onClose, reservations }: UserRe
                       </React.Fragment>
                     }
                   />
+                  <ListItemSecondaryAction>
+                    <Button 
+                      variant="outlined" 
+                      color="error" 
+                      size="small"
+                      disabled={isReservationCancelled(reservation.date, reservation.time)}
+                      onClick={() => handleCancel(reservation.date, reservation.time)}
+                    >
+                      {isReservationCancelled(reservation.date, reservation.time) ? 'Cancelled' : 'Cancel'}
+                    </Button>
+                  </ListItemSecondaryAction>
                 </ListItem>
               ))}
             </List>
