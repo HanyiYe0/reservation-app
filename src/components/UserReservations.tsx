@@ -146,13 +146,13 @@ export default function UserReservations({ open, onClose, reservations, onCancel
                         variant="outlined" 
                         color="error" 
                         size="small"
-                        disabled={isReservationCancelled(reservation.date, reservation.time)}
+                        disabled={isReservationCancelled(reservation.date.toISOString(), reservation.time)}
                         onClick={() => {
                           console.log('Cancel button clicked for:', reservation.time);
                           handleCancel(reservation.date, reservation.time);
                         }}
                       >
-                        {isReservationCancelled(reservation.date, reservation.time) ? 'Cancelled' : 'Cancel'}
+                        {isReservationCancelled(reservation.date.toISOString(), reservation.time) ? 'Cancelled' : 'Cancel'}
                       </Button>
                     </ListItemSecondaryAction>
                   </ListItem>
