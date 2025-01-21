@@ -37,6 +37,7 @@ interface Appointment {
   profileImage: string;
   isBooked?: boolean;
   bookedBy?: string;
+  date?: Date;
 }
 
 interface AppointmentsByDate {
@@ -80,6 +81,7 @@ const generateInitialAppointments = (date: Date): Appointment[] => {
         barberName: barber.name,
         profileImage: barber.profileImage,
         isBooked: false,
+        date: new Date(date)
       });
     }
 
@@ -101,23 +103,61 @@ export default function ReservationApp() {
   console.log('ReservationApp rendering');
   const { isSignedIn } = useAuth();
   const { user } = useUser();
-  const [selectedDate, setSelectedDate] = useState(() => {
-    console.log('Initializing selectedDate');
-    return new Date();
-  });
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showReservations, setShowReservations] = useState(false);
-  const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentsByDate>(() => {
-    console.log('Initializing appointmentsByDate');
-    const today = new Date();
-    const todayKey = format(today, 'yyyy-MM-dd');
-    const initialAppointments = generateInitialAppointments(today);
-    console.log('Initial appointments generated:', initialAppointments);
-    return {
-      [todayKey]: initialAppointments
-    };
-  });
+  const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentsByDate>({});
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [cancelledAppointments, setCancelledAppointments] = useState<Set<string>>(new Set());
+
+  // Initialize appointments on client side only
+  React.useEffect(() => {
+    if (!isInitialized) {
+      console.log('Initializing appointments on client side');
+      
+      // Try to load from localStorage first
+      const savedAppointments = localStorage.getItem('appointments');
+      if (savedAppointments) {
+        try {
+          const parsed = JSON.parse(savedAppointments);
+          // Ensure all appointments have proper structure
+          Object.keys(parsed).forEach(dateKey => {
+            parsed[dateKey] = parsed[dateKey].map((apt: Appointment) => ({
+              ...apt,
+              isBooked: apt.isBooked ?? false,
+              bookedBy: apt.bookedBy || undefined
+            }));
+          });
+          console.log('Loaded appointments from localStorage:', parsed);
+          setAppointmentsByDate(parsed);
+          setIsInitialized(true);
+          return;
+        } catch (error) {
+          console.error('Error parsing saved appointments:', error);
+        }
+      }
+
+      // Generate initial appointments if none saved
+      const today = new Date();
+      const todayKey = format(today, 'yyyy-MM-dd');
+      const initialAppointments = generateInitialAppointments(today);
+      setAppointmentsByDate({ [todayKey]: initialAppointments });
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
+
+  // Save appointments to localStorage whenever they change
+  React.useEffect(() => {
+    if (isInitialized) {
+      console.log('Saving appointments to localStorage');
+      try {
+        localStorage.setItem('appointments', JSON.stringify(appointmentsByDate));
+      } catch (error) {
+        console.error('Error saving appointments:', error);
+      }
+    }
+  }, [appointmentsByDate, isInitialized]);
 
   // Add event listener for opening reservations
   React.useEffect(() => {
@@ -135,15 +175,20 @@ export default function ReservationApp() {
   const userReservations = React.useMemo(() => {
     if (!isSignedIn || !user) return [];
 
+    console.log('=== Calculating User Reservations ===');
     return Object.entries(appointmentsByDate).flatMap(([dateStr, appointments]) => {
-      return appointments
+      console.log('Processing date:', dateStr, 'appointments:', appointments);
+      const reservations = appointments
         .filter(apt => apt.isBooked && apt.bookedBy === user.fullName)
         .map(apt => ({
-          date: new Date(dateStr),
+          date: apt.date || new Date(dateStr),
           time: apt.time,
           barberName: apt.barberName,
-          profileImage: apt.profileImage
+          profileImage: apt.profileImage,
+          isBooked: apt.isBooked
         }));
+      console.log('Filtered reservations for date:', reservations);
+      return reservations;
     });
   }, [appointmentsByDate, isSignedIn, user]);
 
@@ -151,8 +196,11 @@ export default function ReservationApp() {
   console.log('Current dateKey:', dateKey);
   
   const currentAppointments = React.useMemo(() => {
+    if (!isInitialized) {
+      return [];
+    }
+
     console.log('Calculating currentAppointments for dateKey:', dateKey);
-    console.log('Current appointmentsByDate:', appointmentsByDate);
     
     if (!appointmentsByDate[dateKey]) {
       console.log('No appointments found for date, generating new ones');
@@ -164,9 +212,10 @@ export default function ReservationApp() {
       return newAppointments;
     }
     
-    console.log('Returning existing appointments for date');
-    return appointmentsByDate[dateKey];
-  }, [dateKey, appointmentsByDate]);
+    const appointments = appointmentsByDate[dateKey];
+    console.log('Appointments for date:', appointments);
+    return appointments;
+  }, [dateKey, appointmentsByDate, selectedDate, isInitialized]);
 
   const handleAppointmentSelect = (appointment: Appointment) => {
     if (!isSignedIn) {
@@ -177,74 +226,89 @@ export default function ReservationApp() {
   };
 
   const handleBookingSuccess = (timeSlot: string, userName: string) => {
-    setAppointmentsByDate(prev => ({
-      ...prev,
-      [dateKey]: prev[dateKey].map(apt => {
-        if (apt.time === timeSlot) {
-          return {
-            ...apt,
-            isBooked: true,
-            bookedBy: userName,
-          };
-        }
-        return apt;
-      })
-    }));
+    console.log('=== Handling Booking Success ===');
+    console.log('Booking details:', { timeSlot, userName, dateKey, selectedDate });
+    console.log('Current state before booking:', appointmentsByDate[dateKey]);
+    
+    setAppointmentsByDate(prev => {
+      const newState = {
+        ...prev,
+        [dateKey]: prev[dateKey].map(apt => {
+          if (apt.time === timeSlot) {
+            console.log('Updating appointment:', apt);
+            const updatedApt = {
+              ...apt,
+              isBooked: true,
+              bookedBy: userName,
+              date: selectedDate
+            };
+            console.log('Updated to:', updatedApt);
+            return updatedApt;
+          }
+          return apt;
+        })
+      };
+      console.log('New state after booking:', newState[dateKey]);
+      return newState;
+    });
     setShowModal(false);
   };
 
   const handleCancelReservation = (date: Date, time: string) => {
     const dateKey = format(date, 'yyyy-MM-dd');
-    console.log('Cancelling reservation:', { dateKey, time });
-    console.log('Current appointments:', appointmentsByDate[dateKey]);
+    console.log('=== Starting Cancellation Process ===');
+    console.log('Cancelling appointment:', { dateKey, time });
+    console.log('Current appointments state:', appointmentsByDate);
     
     setAppointmentsByDate(prev => {
-      // If no appointments exist for this date, generate them first
-      if (!prev[dateKey]) {
-        console.log('No appointments found for date, generating new ones');
-        const newAppointments = generateInitialAppointments(date);
-        return {
-          ...prev,
-          [dateKey]: newAppointments.map(apt => {
-            if (apt.time === time) {
-              return { ...apt, isBooked: false, bookedBy: undefined };
-            }
-            return apt;
-          })
-        };
+      // Create a new copy of the state
+      const newState = { ...prev };
+      
+      if (newState[dateKey]) {
+        // Update the appointments array for this date
+        newState[dateKey] = newState[dateKey].map(apt => {
+          if (apt.time === time) {
+            console.log('Found appointment to cancel:', apt);
+            return {
+              ...apt,
+              isBooked: false,
+              bookedBy: undefined
+            };
+          }
+          return apt;
+        });
+        
+        // Save to localStorage immediately
+        try {
+          localStorage.setItem('appointments', JSON.stringify(newState));
+          console.log('Saved updated state to localStorage:', newState);
+        } catch (error) {
+          console.error('Error saving to localStorage:', error);
+        }
       }
       
-      // Update the appointments for this date
-      const updatedAppointments = prev[dateKey].map(apt => {
-        if (apt.time === time) {
-          console.log('Found appointment to cancel:', apt);
-          return {
-            ...apt,
-            isBooked: false,
-            bookedBy: undefined
-          };
-        }
-        return apt;
-      });
-      
-      console.log('Updated appointments:', updatedAppointments);
-      return {
-        ...prev,
-        [dateKey]: updatedAppointments
-      };
+      return newState;
     });
+
+    // Force a re-render if we're on the cancelled date
+    const currentDateKey = format(selectedDate, 'yyyy-MM-dd');
+    if (currentDateKey === dateKey) {
+      console.log('Cancelled appointment is on current date, forcing refresh');
+      setSelectedDate(new Date(selectedDate.getTime()));
+    }
   };
 
   const renderBookButton = (appointment: Appointment) => {
-    if (appointment.isBooked) {
-      return (
-        <Button variant="contained" disabled>
-          Booked
-        </Button>
-      );
-    }
+    console.log('=== Rendering Book Button ===');
+    console.log('Appointment details:', {
+      time: appointment.time,
+      isBooked: appointment.isBooked,
+      bookedBy: appointment.bookedBy
+    });
 
+    // If user is not signed in
     if (!isSignedIn) {
+      console.log('User not signed in, showing sign in button');
       return (
         <SignInButton mode="modal">
           <Button variant="contained" color="primary">
@@ -254,6 +318,18 @@ export default function ReservationApp() {
       );
     }
 
+    // If the appointment is booked
+    if (appointment.isBooked) {
+      console.log('Showing Booked button - appointment is booked');
+      return (
+        <Button variant="contained" disabled>
+          Booked
+        </Button>
+      );
+    }
+
+    // For available appointments
+    console.log('Showing Book Now button - appointment is available');
     return (
       <Button
         variant="contained"
@@ -263,6 +339,11 @@ export default function ReservationApp() {
         Book Now
       </Button>
     );
+  };
+
+  const clearReservations = () => {
+    setAppointmentsByDate({});
+    localStorage.removeItem('appointments');
   };
 
   return (
@@ -315,6 +396,10 @@ export default function ReservationApp() {
         reservations={userReservations}
         onCancelReservation={handleCancelReservation}
       />
+
+      <Button onClick={clearReservations} variant="contained" color="secondary">
+        Clear Reservations
+      </Button>
     </Container>
   );
 } 

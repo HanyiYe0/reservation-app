@@ -21,6 +21,7 @@ interface Reservation {
   time: string;
   barberName: string;
   profileImage: string;
+  isBooked?: boolean;
 }
 
 interface UserReservationsProps {
@@ -34,21 +35,44 @@ export default function UserReservations({ open, onClose, reservations, onCancel
   const [cancelledReservations, setCancelledReservations] = useState<string[]>([]);
 
   const sortedReservations = [...reservations].sort((a, b) => {
-    const dateTimeA = new Date(`${format(a.date, 'yyyy/MM/dd')} ${a.time}`);
-    const dateTimeB = new Date(`${format(b.date, 'yyyy/MM/dd')} ${b.time}`);
+    // Check if date and time are valid for a
+    const dateTimeA = a.date && a.time ? new Date(`${format(new Date(a.date), 'yyyy/MM/dd')} ${a.time}`) : null;
+    // Check if date and time are valid for b
+    const dateTimeB = b.date && b.time ? new Date(`${format(new Date(b.date), 'yyyy/MM/dd')} ${b.time}`) : null;
+
+    // Handle invalid date cases
+    if (!dateTimeA) return 1; // Move invalid dates to the end
+    if (!dateTimeB) return -1; // Move invalid dates to the end
+
     return dateTimeA.getTime() - dateTimeB.getTime();
   });
 
   const handleCancel = (date: Date, time: string) => {
-    console.log('Cancel button clicked:', { date, time });
+    // Simple log that will definitely show up
+    console.log('Cancel clicked -', 'Date:', format(date, 'yyyy-MM-dd'), 'Time:', time);
+    
     const key = `${format(date, 'yyyy-MM-dd')}-${time}`;
     setCancelledReservations(prev => [...prev, key]);
-    onCancelReservation(date, time);
+    onCancelReservation(new Date(date), time);
   };
 
-  const isReservationCancelled = (date: Date, time: string) => {
-    const key = `${format(date, 'yyyy-MM-dd')}-${time}`;
-    return cancelledReservations.includes(key);
+  const isReservationCancelled = (date: string, time: string) => {
+    // Log the inputs for debugging
+    console.log('Checking reservation:', { date, time });
+
+    const reservationDate = new Date(date);
+    
+    // Check if the date is valid
+    if (isNaN(reservationDate.getTime()) || !time) {
+      return false; // or handle as needed
+    }
+    
+    // Format the date and check cancellation logic
+    const formattedDate = format(reservationDate, 'yyyy/MM/dd');
+    
+    // Your cancellation logic here
+    // For example, return true if the reservation is cancelled based on some condition
+    return false; // Replace with actual logic
   };
 
   return (
@@ -96,36 +120,44 @@ export default function UserReservations({ open, onClose, reservations, onCancel
             </Typography>
           ) : (
             <List>
-              {sortedReservations.map((reservation, index) => (
-                <ListItem key={index} divider={index !== sortedReservations.length - 1}>
-                  <ListItemAvatar>
-                    <Avatar src={reservation.profileImage} alt={reservation.barberName} />
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={reservation.barberName}
-                    secondary={
-                      <React.Fragment>
-                        <Typography component="span" variant="body2" color="text.primary">
-                          {format(reservation.date, 'MMMM d, yyyy')}
-                        </Typography>
-                        {' — '}
-                        {reservation.time}
-                      </React.Fragment>
-                    }
-                  />
-                  <ListItemSecondaryAction>
-                    <Button 
-                      variant="outlined" 
-                      color="error" 
-                      size="small"
-                      disabled={isReservationCancelled(reservation.date, reservation.time)}
-                      onClick={() => handleCancel(reservation.date, reservation.time)}
-                    >
-                      {isReservationCancelled(reservation.date, reservation.time) ? 'Cancelled' : 'Cancel'}
-                    </Button>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
+              {sortedReservations.map((reservation, index) => {
+                const reservationDate = new Date(reservation.date);
+                const formattedDate = isNaN(reservationDate.getTime()) ? 'Invalid date' : format(reservationDate, 'MMMM d, yyyy');
+
+                return (
+                  <ListItem key={index} divider={index !== sortedReservations.length - 1}>
+                    <ListItemAvatar>
+                      <Avatar src={reservation.profileImage} alt={reservation.barberName} />
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={reservation.barberName}
+                      secondary={
+                        <React.Fragment>
+                          <Typography component="span" variant="body2" color="text.primary">
+                            {formattedDate}
+                          </Typography>
+                          {' — '}
+                          {reservation.time}
+                        </React.Fragment>
+                      }
+                    />
+                    <ListItemSecondaryAction>
+                      <Button 
+                        variant="outlined" 
+                        color="error" 
+                        size="small"
+                        disabled={isReservationCancelled(reservation.date, reservation.time)}
+                        onClick={() => {
+                          console.log('Cancel button clicked for:', reservation.time);
+                          handleCancel(reservation.date, reservation.time);
+                        }}
+                      >
+                        {isReservationCancelled(reservation.date, reservation.time) ? 'Cancelled' : 'Cancel'}
+                      </Button>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                );
+              })}
             </List>
           )}
         </Paper>
