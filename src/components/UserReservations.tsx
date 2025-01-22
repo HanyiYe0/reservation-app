@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   List,
   ListItem,
@@ -22,19 +22,50 @@ interface Reservation {
   barberName: string;
   profileImage: string;
   isBooked?: boolean;
+  isCancelled?: boolean;
 }
 
 interface UserReservationsProps {
   open: boolean;
   onClose: () => void;
   reservations: Reservation[];
-  onCancelReservation: (date: Date, time: string) => void;
+  onCancelReservation: (date: Date, time: string, isCancelled: boolean) => void;
 }
 
 export default function UserReservations({ open, onClose, reservations, onCancelReservation }: UserReservationsProps) {
-  const [cancelledReservations, setCancelledReservations] = useState<string[]>([]);
+  const [localReservations, setLocalReservations] = useState<Reservation[]>([]);
 
-  const sortedReservations = [...reservations].sort((a, b) => {
+  useEffect(() => {
+    console.log('=== User Reservations Modal Opened ===');
+    setLocalReservations(prevReservations => {
+      const updatedReservations = reservations.map(newRes => {
+        const existingRes = prevReservations.find(prevRes => 
+          prevRes.date.getTime() === newRes.date.getTime() && prevRes.time === newRes.time
+        );
+        return existingRes ? { ...newRes, isCancelled: existingRes.isCancelled } : newRes;
+      });
+      return updatedReservations;
+    });
+  }, [reservations]);
+
+  const handleCancel = (reservation: Reservation) => {
+    console.log('=== Cancel Button Clicked ===');
+    console.log('Reservation to cancel:', reservation);
+
+    // Update the local state to mark the reservation as cancelled
+    setLocalReservations(prevReservations => {
+      return prevReservations.map(res => 
+        res.date.getTime() === reservation.date.getTime() && res.time === reservation.time
+          ? { ...res, isCancelled: true } // Set as cancelled
+          : res
+      );
+    });
+
+    // Call the onCancelReservation function to update the state in ReservationApp
+    onCancelReservation(reservation.date, reservation.time, true);
+  };
+
+  const sortedReservations = [...localReservations].sort((a, b) => {
     // Check if date and time are valid for a
     const dateTimeA = a.date && a.time ? new Date(`${format(new Date(a.date), 'yyyy/MM/dd')} ${a.time}`) : null;
     // Check if date and time are valid for b
@@ -47,38 +78,13 @@ export default function UserReservations({ open, onClose, reservations, onCancel
     return dateTimeA.getTime() - dateTimeB.getTime();
   });
 
-  const handleCancel = (date: Date, time: string) => {
-    // Simple log that will definitely show up
-    console.log('Cancel clicked -', 'Date:', format(date, 'yyyy-MM-dd'), 'Time:', time);
-    
-    const key = `${format(date, 'yyyy-MM-dd')}-${time}`;
-    setCancelledReservations(prev => [...prev, key]);
-    onCancelReservation(new Date(date), time);
-  };
-
-  const isReservationCancelled = (date: string, time: string) => {
-    // Log the inputs for debugging
-    console.log('Checking reservation:', { date, time });
-
-    const reservationDate = new Date(date);
-    
-    // Check if the date is valid
-    if (isNaN(reservationDate.getTime()) || !time) {
-      return false; // or handle as needed
-    }
-    
-    // Format the date and check cancellation logic
-    const formattedDate = format(reservationDate, 'yyyy/MM/dd');
-    
-    // Your cancellation logic here
-    // For example, return true if the reservation is cancelled based on some condition
-    return false; // Replace with actual logic
-  };
-
   return (
     <Modal 
       open={open} 
-      onClose={onClose}
+      onClose={() => {
+        console.log('=== User Reservations Modal Closed ===');
+        onClose();
+      }}
     >
       <Box
         sx={{
@@ -137,22 +143,24 @@ export default function UserReservations({ open, onClose, reservations, onCancel
                             {formattedDate}
                           </Typography>
                           {' — '}
-                          {reservation.time}
+                          <Typography component="span" variant="body2" color={reservation.isCancelled ? 'error' : 'text.secondary'}>
+                            {reservation.time} {reservation.isCancelled && '(Cancelled)'}
+                          </Typography>
                         </React.Fragment>
                       }
                     />
                     <ListItemSecondaryAction>
                       <Button 
-                        variant="outlined" 
-                        color="error" 
+                        variant="outlined"
+                        color="error"
                         size="small"
-                        disabled={isReservationCancelled(reservation.date.toISOString(), reservation.time)}
+                        disabled={reservation.isCancelled}
                         onClick={() => {
-                          console.log('Cancel button clicked for:', reservation.time);
-                          handleCancel(reservation.date, reservation.time);
+                          console.log('Button clicked directly');
+                          handleCancel(reservation);
                         }}
                       >
-                        {isReservationCancelled(reservation.date.toISOString(), reservation.time) ? 'Cancelled' : 'Cancel'}
+                        {reservation.isCancelled ? 'Cancelled' : 'Cancel'}
                       </Button>
                     </ListItemSecondaryAction>
                   </ListItem>

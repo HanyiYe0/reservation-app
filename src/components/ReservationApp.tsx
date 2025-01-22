@@ -38,10 +38,20 @@ interface Appointment {
   isBooked?: boolean;
   bookedBy?: string;
   date?: Date;
+  isCancelled?: boolean;
 }
 
 interface AppointmentsByDate {
   [key: string]: Appointment[];
+}
+
+interface Reservation {
+  date: Date;
+  time: string;
+  barberName: string;
+  profileImage: string;
+  isBooked?: boolean;
+  isCancelled?: boolean; // Add this property if needed
 }
 
 // Debug wrapper for seededRandom
@@ -76,22 +86,57 @@ const generateInitialAppointments = (date: Date): Appointment[] => {
       const barberIndex = Math.floor(seededRandom(`${dateStr}-barber-${i}`) * BARBERS.length);
       const barber = BARBERS[barberIndex];
 
-      appointments.push({
+      const appointment: Appointment = {
         time: timeSlot,
         barberName: barber.name,
         profileImage: barber.profileImage,
         isBooked: false,
-        date: new Date(date)
-      });
+        date: new Date(date),
+        isCancelled: false // Explicitly set to false
+      };
+
+      console.log(`Generated appointment for ${timeSlot}:`, appointment);
+      appointments.push(appointment);
     }
 
+    // Sort appointments by time
     const sortedAppointments = appointments.sort((a, b) => {
       const timeA = new Date(`1970/01/01 ${a.time}`).getTime();
       const timeB = new Date(`1970/01/01 ${b.time}`).getTime();
       return timeA - timeB;
     });
 
-    console.log('Generated appointments:', sortedAppointments);
+    // Add Leonardo Minatti at 8:30 AM if not present
+    const hasLeonardo830 = sortedAppointments.some(
+      apt => apt.barberName === 'Leonardo Minatti' && apt.time === '08:30 AM'
+    );
+
+    if (!hasLeonardo830) {
+      sortedAppointments.push({
+        time: '08:30 AM',
+        barberName: 'Leonardo Minatti',
+        profileImage: BARBERS[0].profileImage,
+        isBooked: false,
+        date: new Date(date),
+        isCancelled: false
+      });
+      // Re-sort after adding Leonardo's appointment
+      sortedAppointments.sort((a, b) => {
+        const timeA = new Date(`1970/01/01 ${a.time}`).getTime();
+        const timeB = new Date(`1970/01/01 ${b.time}`).getTime();
+        return timeA - timeB;
+      });
+    }
+
+    // Verify all appointments are not cancelled
+    sortedAppointments.forEach(apt => {
+      if (apt.isCancelled) {
+        console.warn('Found cancelled appointment:', apt);
+        apt.isCancelled = false;
+      }
+    });
+
+    console.log('Final sorted appointments:', sortedAppointments);
     return sortedAppointments;
   } catch (error) {
     console.error('Error generating appointments:', error);
@@ -110,6 +155,9 @@ export default function ReservationApp() {
   const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentsByDate>({});
   const [isInitialized, setIsInitialized] = useState(false);
   const [cancelledAppointments, setCancelledAppointments] = useState<Set<string>>(new Set());
+  const [reservations, setReservations] = useState<Reservation[]>([
+    // Initial reservations data
+  ]);
 
   // Initialize appointments on client side only
   React.useEffect(() => {
@@ -146,18 +194,6 @@ export default function ReservationApp() {
       setIsInitialized(true);
     }
   }, [isInitialized]);
-
-  // Save appointments to localStorage whenever they change
-  React.useEffect(() => {
-    if (isInitialized) {
-      console.log('Saving appointments to localStorage');
-      try {
-        localStorage.setItem('appointments', JSON.stringify(appointmentsByDate));
-      } catch (error) {
-        console.error('Error saving appointments:', error);
-      }
-    }
-  }, [appointmentsByDate, isInitialized]);
 
   // Add event listener for opening reservations
   React.useEffect(() => {
@@ -240,61 +276,49 @@ export default function ReservationApp() {
               ...apt,
               isBooked: true,
               bookedBy: userName,
-              date: selectedDate
+              date: selectedDate,
             };
-            console.log('Updated to:', updatedApt);
+            console.log('Updated appointment:', updatedApt);
             return updatedApt;
           }
           return apt;
         })
       };
-      console.log('New state after booking:', newState[dateKey]);
+      console.log('New state after booking:', newState);
+      
       return newState;
     });
     setShowModal(false);
   };
 
-  const handleCancelReservation = (date: Date, time: string) => {
+  const handleCancelReservation = (date: Date, time: string, isCancelled: boolean) => {
     const dateKey = format(date, 'yyyy-MM-dd');
     console.log('=== Starting Cancellation Process ===');
-    console.log('Cancelling appointment:', { dateKey, time });
-    console.log('Current appointments state:', appointmentsByDate);
+    console.log('Cancelling appointment:', { dateKey, time, isCancelled });
     
     setAppointmentsByDate(prev => {
-      // Create a new copy of the state
-      const newState = { ...prev };
-      
-      if (newState[dateKey]) {
-        // Update the appointments array for this date
-        newState[dateKey] = newState[dateKey].map(apt => {
-          if (apt.time === time) {
-            console.log('Found appointment to cancel:', apt);
-            return {
-              ...apt,
-              isBooked: false,
-              bookedBy: undefined
-            };
-          }
-          return apt;
-        });
+        const newState = { ...prev };
         
-        // Save to localStorage immediately
-        try {
-          localStorage.setItem('appointments', JSON.stringify(newState));
-          console.log('Saved updated state to localStorage:', newState);
-        } catch (error) {
-          console.error('Error saving to localStorage:', error);
+        if (newState[dateKey]) {
+            newState[dateKey] = newState[dateKey].map(apt => {
+                if (apt.time === time) {
+                    return {
+                        ...apt,
+                        isCancelled: true,
+                        isBooked: true, // Keep it booked but marked as cancelled
+                    };
+                }
+                return apt;
+            });
         }
-      }
-      
-      return newState;
+        
+        return newState;
     });
-
-    // Force a re-render if we're on the cancelled date
+    
     const currentDateKey = format(selectedDate, 'yyyy-MM-dd');
     if (currentDateKey === dateKey) {
-      console.log('Cancelled appointment is on current date, forcing refresh');
-      setSelectedDate(new Date(selectedDate.getTime()));
+        console.log('Cancelled appointment is on current date, forcing refresh');
+        setSelectedDate(new Date(selectedDate.getTime()));
     }
   };
 
@@ -303,7 +327,8 @@ export default function ReservationApp() {
     console.log('Appointment details:', {
       time: appointment.time,
       isBooked: appointment.isBooked,
-      bookedBy: appointment.bookedBy
+      bookedBy: appointment.bookedBy,
+      isCancelled: appointment.isCancelled
     });
 
     // If user is not signed in
@@ -318,8 +343,18 @@ export default function ReservationApp() {
       );
     }
 
-    // If the appointment is booked
-    if (appointment.isBooked) {
+    // If the appointment is cancelled
+    if (appointment.isCancelled) {
+      console.log('Showing Cancelled button - appointment is cancelled');
+      return (
+        <Button variant="contained" disabled>
+          Cancelled
+        </Button>
+      );
+    }
+
+    // If the appointment is booked but not cancelled
+    if (appointment.isBooked && !appointment.isCancelled) {
       console.log('Showing Booked button - appointment is booked');
       return (
         <Button variant="contained" disabled>
@@ -341,11 +376,6 @@ export default function ReservationApp() {
     );
   };
 
-  const clearReservations = () => {
-    setAppointmentsByDate({});
-    localStorage.removeItem('appointments');
-  };
-
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Header />
@@ -359,6 +389,7 @@ export default function ReservationApp() {
                 profileImage={currentAppointments[0].profileImage}
                 isBooked={currentAppointments[0].isBooked}
                 bookedBy={currentAppointments[0].bookedBy}
+                isCancelled={currentAppointments[0].isCancelled}
                 customBookButton={renderBookButton(currentAppointments[0])}
               />
             </Box>
@@ -394,12 +425,8 @@ export default function ReservationApp() {
         open={showReservations}
         onClose={() => setShowReservations(false)}
         reservations={userReservations}
-        onCancelReservation={handleCancelReservation}
+        onCancelReservation={(date, time) => handleCancelReservation(date, time, true)}
       />
-
-      <Button onClick={clearReservations} variant="contained" color="secondary">
-        Clear Reservations
-      </Button>
     </Container>
   );
 } 

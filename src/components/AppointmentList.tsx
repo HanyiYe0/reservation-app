@@ -8,14 +8,16 @@ interface Appointment {
   profileImage: string;
   isBooked?: boolean;
   bookedBy?: string;
+  isCancelled?: boolean;
 }
 
 interface AppointmentCardProps {
   appointment: Appointment;
   renderBookButton: (appointment: Appointment) => React.ReactNode;
+  isCancelled?: boolean;
 }
 
-const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, renderBookButton }) => (
+const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, renderBookButton, isCancelled }) => (
   <Card sx={{ mb: 2 }}>
     <CardContent>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -28,13 +30,18 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, renderBo
           <Typography variant="h6">{appointment.barberName}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <AccessTimeIcon sx={{ mr: 1, fontSize: 'small', color: 'primary.main' }} />
-            <Typography variant="body1" color="primary">
-              {appointment.time}
+            <Typography variant="body1" color={appointment.isCancelled ? 'error' : 'primary'}>
+              {appointment.time} {appointment.isCancelled && '(Cancelled)'}
             </Typography>
           </Box>
-          {appointment.isBooked && (
+          {appointment.isBooked && !appointment.isCancelled && (
             <Typography variant="body2" color="error" sx={{ mt: 1 }}>
               Booked by {appointment.bookedBy}
+            </Typography>
+          )}
+          {appointment.isCancelled && (
+            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+              Cancelled
             </Typography>
           )}
         </Box>
@@ -87,6 +94,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
             key={index}
             appointment={apt}
             renderBookButton={renderBookButton}
+            isCancelled={apt.isCancelled}
           />
         ))}
       </Box>
@@ -100,6 +108,7 @@ const AppointmentList: React.FC<AppointmentListProps> = ({
             key={index}
             appointment={apt}
             renderBookButton={renderBookButton}
+            isCancelled={apt.isCancelled}
           />
         ))}
       </Box>

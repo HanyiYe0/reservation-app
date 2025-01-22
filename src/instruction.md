@@ -36,6 +36,5 @@ CREATE TABLE appointments (
 );
 
 Features to implement:
-#1 Add the mock barbers to the barbers table. 
-#2 When the user signs up add it to the users table.
-#3 When the user books an appointment add it to the appointments table.
+#1 When the user signs up add it to the users table.
+    - 

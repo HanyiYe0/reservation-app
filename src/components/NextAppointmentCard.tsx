@@ -9,6 +9,7 @@ interface NextAppointmentCardProps {
   isBooked?: boolean;
   bookedBy?: string;
   customBookButton?: React.ReactNode;
+  isCancelled?: boolean;
 }
 
 const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
@@ -18,6 +19,7 @@ const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
   isBooked,
   bookedBy,
   customBookButton,
+  isCancelled,
 }) => {
   return (
     <Card sx={{ mb: 4, boxShadow: 3 }}>
@@ -37,13 +39,18 @@ const NextAppointmentCard: React.FC<NextAppointmentCardProps> = ({
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
               <AccessTimeIcon sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6" color="primary">
-                {time}
+              <Typography variant="h6" color={isCancelled ? 'error' : isBooked ? 'error' : 'primary'}>
+                {time} {isCancelled && '(Cancelled)'}
               </Typography>
             </Box>
-            {isBooked && (
+            {isBooked && !isCancelled && (
               <Typography variant="body2" color="error" sx={{ mt: 1 }}>
                 Booked by {bookedBy}
+              </Typography>
+            )}
+            {isCancelled && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                Cancelled
               </Typography>
             )}
           </Box>
