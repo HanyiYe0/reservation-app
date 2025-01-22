@@ -331,6 +331,16 @@ export default function ReservationApp() {
       isCancelled: appointment.isCancelled
     });
 
+    // If the appointment is cancelled, always show cancelled regardless of sign-in status
+    if (appointment.isCancelled) {
+      console.log('Showing Cancelled button - appointment is cancelled');
+      return (
+        <Button variant="contained" disabled>
+          Cancelled
+        </Button>
+      );
+    }
+
     // If user is not signed in
     if (!isSignedIn) {
       console.log('User not signed in, showing sign in button');
@@ -340,16 +350,6 @@ export default function ReservationApp() {
             Sign in to Book
           </Button>
         </SignInButton>
-      );
-    }
-
-    // If the appointment is cancelled
-    if (appointment.isCancelled) {
-      console.log('Showing Cancelled button - appointment is cancelled');
-      return (
-        <Button variant="contained" disabled>
-          Cancelled
-        </Button>
       );
     }
 
