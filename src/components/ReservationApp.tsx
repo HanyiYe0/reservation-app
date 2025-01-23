@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Box, Container, Grid, Button } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Box, Container, Grid, Button, Typography } from '@mui/material';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { SignInButton } from '@clerk/nextjs';
 import Header from './Header';
@@ -13,16 +13,15 @@ import BookingModal from './BookingModal';
 import React from 'react';
 import UserReservations from './UserReservations';
 
-// Move these to a separate file later
-const BARBERS = [
-  { id: 1, name: 'Leonardo Minatti', profileImage: 'https://i.pravatar.cc/150?img=1' },
-  { id: 2, name: 'Cleiton Souza', profileImage: 'https://i.pravatar.cc/150?img=2' },
-  { id: 3, name: 'Mike Wilson', profileImage: 'https://i.pravatar.cc/150?img=3' },
-  { id: 4, name: 'Sarah Johnson', profileImage: 'https://i.pravatar.cc/150?img=4' },
-  { id: 5, name: 'John Smith', profileImage: 'https://i.pravatar.cc/150?img=5' },
-  { id: 6, name: 'Emma Davis', profileImage: 'https://i.pravatar.cc/150?img=6' },
-  { id: 7, name: 'Carlos Rodriguez', profileImage: 'https://i.pravatar.cc/150?img=7' },
-];
+// Define the Barber interface
+interface Barber {
+  id: number;
+  name: string;
+  profile_picture: string;
+  availability: any; // You can type this more specifically based on your JSON structure
+  created_at: string;
+  updated_at: string;
+}
 
 const TIME_SLOTS = [
   '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', 
@@ -69,7 +68,7 @@ const seededRandom = (seed: string) => {
 };
 
 // Generate initial appointments for each date
-const generateInitialAppointments = (date: Date): Appointment[] => {
+const generateInitialAppointments = (date: Date, barbers: Barber[]): Appointment[] => {
   console.log('Generating appointments for date:', date);
   const dateStr = format(date, 'yyyy-MM-dd');
   const appointments: Appointment[] = [];
@@ -83,57 +82,26 @@ const generateInitialAppointments = (date: Date): Appointment[] => {
     for (let i = 0; i < numAppointments && availableTimeSlots.length > 0; i++) {
       const timeIndex = Math.floor(seededRandom(`${dateStr}-time-${i}`) * availableTimeSlots.length);
       const timeSlot = availableTimeSlots.splice(timeIndex, 1)[0];
-      const barberIndex = Math.floor(seededRandom(`${dateStr}-barber-${i}`) * BARBERS.length);
-      const barber = BARBERS[barberIndex];
+      const barberIndex = Math.floor(seededRandom(`${dateStr}-barber-${i}`) * barbers.length);
+      const barber = barbers[barberIndex];
 
       const appointment: Appointment = {
         time: timeSlot,
         barberName: barber.name,
-        profileImage: barber.profileImage,
+        profileImage: barber.profile_picture,
         isBooked: false,
         date: new Date(date),
-        isCancelled: false // Explicitly set to false
+        isCancelled: false
       };
 
       console.log(`Generated appointment for ${timeSlot}:`, appointment);
       appointments.push(appointment);
     }
 
-    // Sort appointments by time
     const sortedAppointments = appointments.sort((a, b) => {
       const timeA = new Date(`1970/01/01 ${a.time}`).getTime();
       const timeB = new Date(`1970/01/01 ${b.time}`).getTime();
       return timeA - timeB;
-    });
-
-    // Add Leonardo Minatti at 8:30 AM if not present
-    const hasLeonardo830 = sortedAppointments.some(
-      apt => apt.barberName === 'Leonardo Minatti' && apt.time === '08:30 AM'
-    );
-
-    if (!hasLeonardo830) {
-      sortedAppointments.push({
-        time: '08:30 AM',
-        barberName: 'Leonardo Minatti',
-        profileImage: BARBERS[0].profileImage,
-        isBooked: false,
-        date: new Date(date),
-        isCancelled: false
-      });
-      // Re-sort after adding Leonardo's appointment
-      sortedAppointments.sort((a, b) => {
-        const timeA = new Date(`1970/01/01 ${a.time}`).getTime();
-        const timeB = new Date(`1970/01/01 ${b.time}`).getTime();
-        return timeA - timeB;
-      });
-    }
-
-    // Verify all appointments are not cancelled
-    sortedAppointments.forEach(apt => {
-      if (apt.isCancelled) {
-        console.warn('Found cancelled appointment:', apt);
-        apt.isCancelled = false;
-      }
     });
 
     console.log('Final sorted appointments:', sortedAppointments);
@@ -145,7 +113,6 @@ const generateInitialAppointments = (date: Date): Appointment[] => {
 };
 
 export default function ReservationApp() {
-  console.log('ReservationApp rendering');
   const { isSignedIn } = useAuth();
   const { user } = useUser();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -154,14 +121,36 @@ export default function ReservationApp() {
   const [showReservations, setShowReservations] = useState(false);
   const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentsByDate>({});
   const [isInitialized, setIsInitialized] = useState(false);
+  const [barbers, setBarbers] = useState<Barber[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [cancelledAppointments, setCancelledAppointments] = useState<Set<string>>(new Set());
   const [reservations, setReservations] = useState<Reservation[]>([
     // Initial reservations data
   ]);
 
+  // Fetch barbers when component mounts
+  useEffect(() => {
+    const fetchBarbers = async () => {
+      try {
+        const response = await fetch('/api/barbers');
+        if (!response.ok) {
+          throw new Error('Failed to fetch barbers');
+        }
+        const data = await response.json();
+        setBarbers(data);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching barbers:', error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchBarbers();
+  }, []);
+
   // Initialize appointments on client side only
-  React.useEffect(() => {
-    if (!isInitialized) {
+  useEffect(() => {
+    if (!isInitialized && barbers.length > 0) {
       console.log('Initializing appointments on client side');
       
       // Try to load from localStorage first
@@ -189,14 +178,14 @@ export default function ReservationApp() {
       // Generate initial appointments if none saved
       const today = new Date();
       const todayKey = format(today, 'yyyy-MM-dd');
-      const initialAppointments = generateInitialAppointments(today);
+      const initialAppointments = generateInitialAppointments(today, barbers);
       setAppointmentsByDate({ [todayKey]: initialAppointments });
       setIsInitialized(true);
     }
-  }, [isInitialized]);
+  }, [isInitialized, barbers]);
 
   // Add event listener for opening reservations
-  React.useEffect(() => {
+  useEffect(() => {
     const handleOpenReservations = () => {
       setShowReservations(true);
     };
@@ -240,7 +229,7 @@ export default function ReservationApp() {
     
     if (!appointmentsByDate[dateKey]) {
       console.log('No appointments found for date, generating new ones');
-      const newAppointments = generateInitialAppointments(selectedDate);
+      const newAppointments = generateInitialAppointments(selectedDate, barbers);
       setAppointmentsByDate(prev => ({
         ...prev,
         [dateKey]: newAppointments
@@ -251,7 +240,7 @@ export default function ReservationApp() {
     const appointments = appointmentsByDate[dateKey];
     console.log('Appointments for date:', appointments);
     return appointments;
-  }, [dateKey, appointmentsByDate, selectedDate, isInitialized]);
+  }, [dateKey, appointmentsByDate, selectedDate, isInitialized, barbers]);
 
   const handleAppointmentSelect = (appointment: Appointment) => {
     if (!isSignedIn) {
@@ -375,6 +364,16 @@ export default function ReservationApp() {
       </Button>
     );
   };
+
+  if (isLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+          <Typography>Loading barbers...</Typography>
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
