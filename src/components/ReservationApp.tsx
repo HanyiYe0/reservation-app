@@ -38,6 +38,7 @@ interface Appointment {
   bookedBy?: string;
   date?: Date;
   isCancelled?: boolean;
+  barberId?: number;
 }
 
 interface AppointmentsByDate {
@@ -91,7 +92,8 @@ const generateInitialAppointments = (date: Date, barbers: Barber[]): Appointment
         profileImage: barber.profile_picture,
         isBooked: false,
         date: new Date(date),
-        isCancelled: false
+        isCancelled: false,
+        barberId: barber.id
       };
 
       console.log(`Generated appointment for ${timeSlot}:`, appointment);
@@ -250,34 +252,62 @@ export default function ReservationApp() {
     setShowModal(true);
   };
 
-  const handleBookingSuccess = (timeSlot: string, userName: string) => {
+  const handleBookingSuccess = async (timeSlot: string, userName: string) => {
     console.log('=== Handling Booking Success ===');
     console.log('Booking details:', { timeSlot, userName, dateKey, selectedDate });
-    console.log('Current state before booking:', appointmentsByDate[dateKey]);
     
-    setAppointmentsByDate(prev => {
-      const newState = {
-        ...prev,
-        [dateKey]: prev[dateKey].map(apt => {
-          if (apt.time === timeSlot) {
-            console.log('Updating appointment:', apt);
-            const updatedApt = {
-              ...apt,
-              isBooked: true,
-              bookedBy: userName,
-              date: selectedDate,
-            };
-            console.log('Updated appointment:', updatedApt);
-            return updatedApt;
-          }
-          return apt;
-        })
-      };
-      console.log('New state after booking:', newState);
-      
-      return newState;
-    });
-    setShowModal(false);
+    if (!selectedAppointment || !user) {
+      console.error('Missing required booking information');
+      return;
+    }
+
+    try {
+      // Create the appointment in the database
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          userName: user.fullName,
+          userEmail: user.primaryEmailAddress?.emailAddress,
+          barberId: selectedAppointment.barberId,
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          timeSlot: timeSlot
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create appointment');
+      }
+
+      // Update local state
+      setAppointmentsByDate(prev => {
+        const newState = {
+          ...prev,
+          [dateKey]: prev[dateKey].map(apt => {
+            if (apt.time === timeSlot) {
+              return {
+                ...apt,
+                isBooked: true,
+                bookedBy: userName,
+                date: selectedDate,
+              };
+            }
+            return apt;
+          })
+        };
+        console.log('New state after booking:', newState);
+        return newState;
+      });
+
+      setShowModal(false);
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      // You might want to show an error message to the user here
+    }
   };
 
   const handleCancelReservation = (date: Date, time: string, isCancelled: boolean) => {

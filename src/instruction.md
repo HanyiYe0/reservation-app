@@ -38,3 +38,4 @@ CREATE TABLE appointments (
 Features to implement:
 #1 When the user signs up add it to the users table.
 #2 Clear the current mock barbers data and import all the barbers from the barbers table. 
+#3 When an appointment is made, add it to the appointments table. 
