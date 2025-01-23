@@ -10,16 +10,19 @@
     "@mui/material": "^5.15.5",
     "@mui/x-date-pickers": "^6.18.1",
     "@next/font": "^14.2.15",
+    "@supabase/supabase-js": "^2.48.0",
     "cra-template-typescript": "1.2.0",
     "date-fns": "^2.30.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
+    "svix": "^1.45.1",
     "web-vitals": "^4.2.4"
   },
   "scripts": {
     "dev": "next dev",
+    "dev:webhook": "ngrok http 3000 & next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -52,6 +55,7 @@
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
+    "ngrok": "^5.0.0-beta.2",
     "typescript": "^4.9.5"
   }
 }
