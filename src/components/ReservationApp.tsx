@@ -54,6 +54,22 @@ interface Reservation {
   isCancelled?: boolean; // Add this property if needed
 }
 
+// Add interface for database appointment
+interface DBAppointment {
+  id: number;
+  date: string;
+  time_slot: string;
+  status: string;
+  users: {
+    name: string;
+    email: string;
+  };
+  barbers: {
+    name: string;
+    profile_picture: string;
+  };
+}
+
 // Debug wrapper for seededRandom
 const seededRandom = (seed: string) => {
   console.log('Generating seeded random for:', seed);
@@ -69,37 +85,73 @@ const seededRandom = (seed: string) => {
 };
 
 // Generate initial appointments for each date
-const generateInitialAppointments = (date: Date, barbers: Barber[]): Appointment[] => {
+const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promise<Appointment[]> => {
   console.log('Generating appointments for date:', date);
   const dateStr = format(date, 'yyyy-MM-dd');
-  const appointments: Appointment[] = [];
-  const numAppointments = Math.floor(seededRandom(`${dateStr}-count`) * 5) + 8;
-  console.log('Number of appointments to generate:', numAppointments);
-
+  
   try {
+    // First, fetch existing appointments for this date
+    const response = await fetch(`/api/appointments/getByDate?date=${dateStr}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch existing appointments');
+    }
+    const existingAppointments: DBAppointment[] = await response.json();
+    console.log('Existing appointments:', existingAppointments);
+
+    const appointments: Appointment[] = [];
     const usedTimeSlots = new Set<string>();
     const availableTimeSlots = [...TIME_SLOTS];
 
+    // First, add existing appointments
+    existingAppointments.forEach(dbApt => {
+      // Convert 24h time to 12h time for display
+      const time = new Date(`1970-01-01T${dbApt.time_slot}`);
+      const timeSlot = time.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).toUpperCase();
+
+      usedTimeSlots.add(timeSlot);
+      const index = availableTimeSlots.indexOf(timeSlot);
+      if (index > -1) {
+        availableTimeSlots.splice(index, 1);
+      }
+
+      appointments.push({
+        time: timeSlot,
+        barberName: dbApt.barbers.name,
+        profileImage: dbApt.barbers.profile_picture,
+        isBooked: true,
+        bookedBy: dbApt.users.name,
+        date: new Date(dbApt.date),
+        isCancelled: false
+      });
+    });
+
+    // Then generate additional available appointments
+    const numAppointments = Math.floor(seededRandom(`${dateStr}-count`) * 5) + 8;
+    
     for (let i = 0; i < numAppointments && availableTimeSlots.length > 0; i++) {
       const timeIndex = Math.floor(seededRandom(`${dateStr}-time-${i}`) * availableTimeSlots.length);
       const timeSlot = availableTimeSlots.splice(timeIndex, 1)[0];
       const barberIndex = Math.floor(seededRandom(`${dateStr}-barber-${i}`) * barbers.length);
       const barber = barbers[barberIndex];
 
-      const appointment: Appointment = {
-        time: timeSlot,
-        barberName: barber.name,
-        profileImage: barber.profile_picture,
-        isBooked: false,
-        date: new Date(date),
-        isCancelled: false,
-        barberId: barber.id
-      };
-
-      console.log(`Generated appointment for ${timeSlot}:`, appointment);
-      appointments.push(appointment);
+      if (!usedTimeSlots.has(timeSlot)) {
+        appointments.push({
+          time: timeSlot,
+          barberName: barber.name,
+          profileImage: barber.profile_picture,
+          isBooked: false,
+          date: new Date(date),
+          isCancelled: false,
+          barberId: barber.id
+        });
+      }
     }
 
+    // Sort appointments by time
     const sortedAppointments = appointments.sort((a, b) => {
       const timeA = new Date(`1970/01/01 ${a.time}`).getTime();
       const timeB = new Date(`1970/01/01 ${b.time}`).getTime();
@@ -155,34 +207,13 @@ export default function ReservationApp() {
     if (!isInitialized && barbers.length > 0) {
       console.log('Initializing appointments on client side');
       
-      // Try to load from localStorage first
-      const savedAppointments = localStorage.getItem('appointments');
-      if (savedAppointments) {
-        try {
-          const parsed = JSON.parse(savedAppointments);
-          // Ensure all appointments have proper structure
-          Object.keys(parsed).forEach(dateKey => {
-            parsed[dateKey] = parsed[dateKey].map((apt: Appointment) => ({
-              ...apt,
-              isBooked: apt.isBooked ?? false,
-              bookedBy: apt.bookedBy || undefined
-            }));
-          });
-          console.log('Loaded appointments from localStorage:', parsed);
-          setAppointmentsByDate(parsed);
-          setIsInitialized(true);
-          return;
-        } catch (error) {
-          console.error('Error parsing saved appointments:', error);
-        }
-      }
-
-      // Generate initial appointments if none saved
       const today = new Date();
       const todayKey = format(today, 'yyyy-MM-dd');
-      const initialAppointments = generateInitialAppointments(today, barbers);
-      setAppointmentsByDate({ [todayKey]: initialAppointments });
-      setIsInitialized(true);
+      
+      generateInitialAppointments(today, barbers).then(initialAppointments => {
+        setAppointmentsByDate({ [todayKey]: initialAppointments });
+        setIsInitialized(true);
+      });
     }
   }, [isInitialized, barbers]);
 
@@ -231,12 +262,13 @@ export default function ReservationApp() {
     
     if (!appointmentsByDate[dateKey]) {
       console.log('No appointments found for date, generating new ones');
-      const newAppointments = generateInitialAppointments(selectedDate, barbers);
-      setAppointmentsByDate(prev => ({
-        ...prev,
-        [dateKey]: newAppointments
-      }));
-      return newAppointments;
+      generateInitialAppointments(selectedDate, barbers).then(newAppointments => {
+        setAppointmentsByDate(prev => ({
+          ...prev,
+          [dateKey]: newAppointments
+        }));
+      });
+      return [];
     }
     
     const appointments = appointmentsByDate[dateKey];
