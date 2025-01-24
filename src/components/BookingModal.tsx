@@ -8,8 +8,10 @@ import {
   Typography,
   Box,
   Avatar,
-  CircularProgress
+  CircularProgress,
+  IconButton
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface BookingModalProps {
   open: boolean;
@@ -36,7 +38,12 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Confirm Booking</DialogTitle>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+        <DialogTitle>Confirm Booking</DialogTitle>
+        <IconButton onClick={onClose} disabled={isBooking}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
       <DialogContent>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <Avatar

@@ -1,22 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
   List,
   ListItem,
   ListItemText,
   ListItemAvatar,
   Avatar,
+  Button,
   Typography,
   Box,
-  IconButton,
-  Paper,
-  Button,
-  ListItemSecondaryAction,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  CircularProgress
+  CircularProgress,
+  IconButton
 } from '@mui/material';
-import { Modal } from '@mui/base/Modal';
 import CloseIcon from '@mui/icons-material/Close';
 import { format } from 'date-fns';
 
@@ -44,62 +41,28 @@ const UserReservations: React.FC<UserReservationsProps> = ({
   onCancelReservation,
   isCancelling
 }) => {
-  const [localReservations, setLocalReservations] = useState<Reservation[]>([]);
-
-  useEffect(() => {
-    console.log('=== User Reservations Modal Opened ===');
-    setLocalReservations(prevReservations => {
-      const updatedReservations = reservations.map(newRes => {
-        const existingRes = prevReservations.find(prevRes => 
-          prevRes.date.getTime() === newRes.date.getTime() && prevRes.time === newRes.time
-        );
-        return existingRes ? { ...newRes, isCancelled: existingRes.isCancelled } : newRes;
-      });
-      return updatedReservations;
-    });
-  }, [reservations]);
-
-  const handleCancel = (reservation: Reservation) => {
-    console.log('=== Cancel Button Clicked ===');
-    console.log('Reservation to cancel:', reservation);
-
-    // Update the local state to mark the reservation as cancelled
-    setLocalReservations(prevReservations => {
-      return prevReservations.map(res => 
-        res.date.getTime() === reservation.date.getTime() && res.time === reservation.time
-          ? { ...res, isCancelled: true } // Set as cancelled
-          : res
-      );
-    });
-
-    // Call the onCancelReservation function to update the state in ReservationApp
-    onCancelReservation(reservation.date, reservation.time);
-  };
-
-  const sortedReservations = [...localReservations].sort((a, b) => {
-    // Check if date and time are valid for a
-    const dateTimeA = a.date && a.time ? new Date(`${format(new Date(a.date), 'yyyy/MM/dd')} ${a.time}`) : null;
-    // Check if date and time are valid for b
-    const dateTimeB = b.date && b.time ? new Date(`${format(new Date(b.date), 'yyyy/MM/dd')} ${b.time}`) : null;
-
-    // Handle invalid date cases
-    if (!dateTimeA) return 1; // Move invalid dates to the end
-    if (!dateTimeB) return -1; // Move invalid dates to the end
-
+  const sortedReservations = [...reservations].sort((a, b) => {
+    const dateTimeA = new Date(`${format(a.date, 'yyyy/MM/dd')} ${a.time}`);
+    const dateTimeB = new Date(`${format(b.date, 'yyyy/MM/dd')} ${b.time}`);
     return dateTimeA.getTime() - dateTimeB.getTime();
   });
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>My Reservations</DialogTitle>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+        <DialogTitle>My Reservations</DialogTitle>
+        <IconButton onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
       <DialogContent>
-        {reservations.length === 0 ? (
+        {sortedReservations.length === 0 ? (
           <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
             No reservations found
           </Typography>
         ) : (
           <List>
-            {reservations.map((reservation, index) => (
+            {sortedReservations.map((reservation, index) => (
               <ListItem
                 key={index}
                 sx={{
@@ -150,7 +113,7 @@ const UserReservations: React.FC<UserReservationsProps> = ({
                   <Button
                     variant="outlined"
                     color="error"
-                    onClick={() => handleCancel(reservation)}
+                    onClick={() => onCancelReservation(reservation.date, reservation.time)}
                     disabled={isCancelling === reservation.time}
                     sx={{ ml: 2 }}
                   >
