@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Box, Container, Grid, Button, Typography } from '@mui/material';
+import { Box, Container, Grid, Button, Typography, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { SignInButton } from '@clerk/nextjs';
 import Header from './Header';
@@ -220,6 +220,17 @@ export default function ReservationApp() {
   ]);
   const [userAppointments, setUserAppointments] = useState<Appointment[]>([]);
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const [isCancelling, setIsCancelling] = useState<string | null>(null); // Store time slot being cancelled
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    type: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    type: 'success'
+  });
 
   // Fetch barbers when component mounts
   useEffect(() => {
@@ -407,6 +418,7 @@ export default function ReservationApp() {
       return;
     }
 
+    setIsBooking(true);
     try {
       // Create the appointment in the database
       const response = await fetch('/api/appointments', {
@@ -424,13 +436,12 @@ export default function ReservationApp() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create appointment');
-      }
-
       const responseData = await response.json();
       console.log('Booking response:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to create appointment');
+      }
 
       // Update local state
       setAppointmentsByDate(prev => {
@@ -465,12 +476,21 @@ export default function ReservationApp() {
       };
 
       setUserAppointments(prev => [...prev, newAppointment]);
-      console.log('Added new appointment to userAppointments:', newAppointment);
-
+      setNotification({
+        open: true,
+        message: 'Appointment booked successfully!',
+        type: 'success'
+      });
       setShowModal(false);
     } catch (error) {
       console.error('Error creating appointment:', error);
-      // You might want to show an error message to the user here
+      setNotification({
+        open: true,
+        message: 'Failed to book appointment. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -481,6 +501,7 @@ export default function ReservationApp() {
     console.log('Formatted date:', dateKey);
     console.log('Cancelling appointment:', { dateKey, time });
 
+    setIsCancelling(time);
     try {
       // Convert 12-hour time to 24-hour format for the backend
       const [timeStr, period] = time.split(' ');
@@ -553,9 +574,21 @@ export default function ReservationApp() {
           [currentDateKey]: newAppointments
         }));
       }
+
+      setNotification({
+        open: true,
+        message: 'Appointment cancelled successfully',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error cancelling appointment:', error);
-      // You might want to show an error message to the user here
+      setNotification({
+        open: true,
+        message: 'Failed to cancel appointment. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsCancelling(null);
     }
   };
 
@@ -619,6 +652,11 @@ export default function ReservationApp() {
     if (isThisWeek(date)) return format(date, 'EEEE');
     if (isSameWeek(date, addWeeks(new Date(), 1))) return 'Next Week';
     return format(date, 'MMMM d');
+  };
+
+  // Handle notification close
+  const handleNotificationClose = () => {
+    setNotification(prev => ({ ...prev, open: false }));
   };
 
   if (isLoading) {
@@ -709,6 +747,7 @@ export default function ReservationApp() {
           onSubmit={async (bookingData) => {
             handleBookingSuccess(bookingData.time, user?.fullName || 'Unknown User');
           }}
+          isBooking={isBooking}
         />
       )}
 
@@ -716,8 +755,25 @@ export default function ReservationApp() {
         open={showReservations}
         onClose={() => setShowReservations(false)}
         reservations={userReservations}
-        onCancelReservation={(date, time) => handleCancelReservation(date, time)}
+        onCancelReservation={handleCancelReservation}
+        isCancelling={isCancelling}
       />
+
+      <Snackbar 
+        open={notification.open} 
+        autoHideDuration={6000} 
+        onClose={handleNotificationClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleNotificationClose} 
+          severity={notification.type}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 } 

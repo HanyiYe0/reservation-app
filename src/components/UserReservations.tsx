@@ -10,7 +10,11 @@ import {
   IconButton,
   Paper,
   Button,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  CircularProgress
 } from '@mui/material';
 import { Modal } from '@mui/base/Modal';
 import CloseIcon from '@mui/icons-material/Close';
@@ -29,10 +33,17 @@ interface UserReservationsProps {
   open: boolean;
   onClose: () => void;
   reservations: Reservation[];
-  onCancelReservation: (date: Date, time: string, isCancelled: boolean) => void;
+  onCancelReservation: (date: Date, time: string) => void;
+  isCancelling: string | null;
 }
 
-export default function UserReservations({ open, onClose, reservations, onCancelReservation }: UserReservationsProps) {
+const UserReservations: React.FC<UserReservationsProps> = ({
+  open,
+  onClose,
+  reservations,
+  onCancelReservation,
+  isCancelling
+}) => {
   const [localReservations, setLocalReservations] = useState<Reservation[]>([]);
 
   useEffect(() => {
@@ -62,7 +73,7 @@ export default function UserReservations({ open, onClose, reservations, onCancel
     });
 
     // Call the onCancelReservation function to update the state in ReservationApp
-    onCancelReservation(reservation.date, reservation.time, true);
+    onCancelReservation(reservation.date, reservation.time);
   };
 
   const sortedReservations = [...localReservations].sort((a, b) => {
@@ -79,97 +90,87 @@ export default function UserReservations({ open, onClose, reservations, onCancel
   });
 
   return (
-    <Modal 
-      open={open} 
-      onClose={() => {
-        console.log('=== User Reservations Modal Closed ===');
-        onClose();
-      }}
-    >
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 1300,
-        }}
-      >
-        <Paper
-          sx={{
-            width: '100%',
-            maxWidth: 600,
-            maxHeight: '90vh',
-            overflow: 'auto',
-            m: 2,
-            p: 3,
-            position: 'relative',
-            zIndex: 1301,
-          }}
-          elevation={24}
-        >
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Your Reservations</Typography>
-            <IconButton onClick={onClose} size="small">
-              <CloseIcon />
-            </IconButton>
-          </Box>
-
-          {sortedReservations.length === 0 ? (
-            <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-              You don't have any reservations yet.
-            </Typography>
-          ) : (
-            <List>
-              {sortedReservations.map((reservation, index) => {
-                const reservationDate = new Date(reservation.date);
-                const formattedDate = isNaN(reservationDate.getTime()) ? 'Invalid date' : format(reservationDate, 'MMMM d, yyyy');
-
-                return (
-                  <ListItem key={index} divider={index !== sortedReservations.length - 1}>
-                    <ListItemAvatar>
-                      <Avatar src={reservation.profileImage} alt={reservation.barberName} />
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={reservation.barberName}
-                      secondary={
-                        <React.Fragment>
-                          <Typography component="span" variant="body2" color="text.primary">
-                            {formattedDate}
-                          </Typography>
-                          {' — '}
-                          <Typography component="span" variant="body2" color={reservation.isCancelled ? 'error' : 'text.secondary'}>
-                            {reservation.time} {reservation.isCancelled && '(Cancelled)'}
-                          </Typography>
-                        </React.Fragment>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <Button 
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        disabled={reservation.isCancelled}
-                        onClick={() => {
-                          console.log('Button clicked directly');
-                          handleCancel(reservation);
-                        }}
-                      >
-                        {reservation.isCancelled ? 'Cancelled' : 'Cancel'}
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                );
-              })}
-            </List>
-          )}
-        </Paper>
-      </Box>
-    </Modal>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>My Reservations</DialogTitle>
+      <DialogContent>
+        {reservations.length === 0 ? (
+          <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+            No reservations found
+          </Typography>
+        ) : (
+          <List>
+            {reservations.map((reservation, index) => (
+              <ListItem
+                key={index}
+                sx={{
+                  mb: 2,
+                  backgroundColor: 'background.paper',
+                  borderRadius: 1,
+                  boxShadow: 1,
+                }}
+              >
+                <ListItemAvatar>
+                  <Avatar src={reservation.profileImage} alt={reservation.barberName} />
+                </ListItemAvatar>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="subtitle1" component="span">
+                        {reservation.barberName}
+                      </Typography>
+                      {reservation.isCancelled && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            backgroundColor: 'error.main',
+                            color: 'error.contrastText',
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: 1,
+                          }}
+                        >
+                          Cancelled
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                  secondary={
+                    <>
+                      <Typography component="span" variant="body2" color="text.primary">
+                        {format(reservation.date, 'MMMM d, yyyy')}
+                      </Typography>
+                      <br />
+                      <Typography component="span" variant="body2" color="text.secondary">
+                        {reservation.time}
+                      </Typography>
+                    </>
+                  }
+                />
+                {!reservation.isCancelled && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleCancel(reservation)}
+                    disabled={isCancelling === reservation.time}
+                    sx={{ ml: 2 }}
+                  >
+                    {isCancelling === reservation.time ? (
+                      <>
+                        <CircularProgress size={20} color="error" sx={{ mr: 1 }} />
+                        Cancelling...
+                      </>
+                    ) : (
+                      'Cancel'
+                    )}
+                  </Button>
+                )}
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </DialogContent>
+    </Dialog>
   );
-} 
+};
+
+export default UserReservations; 
