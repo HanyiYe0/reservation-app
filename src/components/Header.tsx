@@ -30,12 +30,12 @@ const Header: React.FC<HeaderProps> = ({ selectedDate }) => {
         }}
       >
         <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 'normal' }}>
-          {format(selectedDate, 'MMMM d, yyyy')}
+          {format(selectedDate, 'EEEE, MMMM d')}
         </Typography>
         <Box
           sx={{
-            backgroundColor: isToday(selectedDate) ? 'primary.main' : 'grey.100',
-            color: isToday(selectedDate) ? 'primary.contrastText' : 'text.secondary',
+            backgroundColor: 'primary.main',
+            color: 'primary.contrastText',
             px: 2,
             py: 0.5,
             borderRadius: 2,
