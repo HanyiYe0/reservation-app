@@ -61,10 +61,12 @@ interface DBAppointment {
   time_slot: string;
   status: string;
   users: {
+    id: number;
     name: string;
     email: string;
   };
   barbers: {
+    id: number;
     name: string;
     profile_picture: string;
   };
@@ -181,6 +183,7 @@ export default function ReservationApp() {
   const [reservations, setReservations] = useState<Reservation[]>([
     // Initial reservations data
   ]);
+  const [userAppointments, setUserAppointments] = useState<Appointment[]>([]);
 
   // Fetch barbers when component mounts
   useEffect(() => {
@@ -229,26 +232,71 @@ export default function ReservationApp() {
     };
   }, []);
 
-  // Get all user's reservations
-  const userReservations = React.useMemo(() => {
-    if (!isSignedIn || !user) return [];
+  // Fetch user's appointments when signed in
+  useEffect(() => {
+    const fetchUserAppointments = async () => {
+      if (!isSignedIn || !user?.primaryEmailAddress?.emailAddress) return;
 
-    console.log('=== Calculating User Reservations ===');
-    return Object.entries(appointmentsByDate).flatMap(([dateStr, appointments]) => {
-      console.log('Processing date:', dateStr, 'appointments:', appointments);
-      const reservations = appointments
-        .filter(apt => apt.isBooked && apt.bookedBy === user.fullName)
-        .map(apt => ({
-          date: apt.date || new Date(dateStr),
-          time: apt.time,
-          barberName: apt.barberName,
-          profileImage: apt.profileImage,
-          isBooked: apt.isBooked
-        }));
-      console.log('Filtered reservations for date:', reservations);
-      return reservations;
-    });
-  }, [appointmentsByDate, isSignedIn, user]);
+      try {
+        const response = await fetch(
+          `/api/appointments/getUserAppointments?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`
+        );
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user appointments');
+        }
+
+        const data = await response.json();
+        console.log('Fetched user appointments:', data);
+        
+        // Convert the appointments to our frontend format
+        const formattedAppointments = data.map((apt: DBAppointment) => {
+          // Convert 24h time to 12h time for display
+          const time = new Date(`1970-01-01T${apt.time_slot}`);
+          const timeSlot = time.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          }).toUpperCase();
+
+          return {
+            time: timeSlot,
+            barberName: apt.barbers?.name || 'Unknown Barber',
+            profileImage: apt.barbers?.profile_picture || '',
+            isBooked: true,
+            bookedBy: apt.users?.name || 'Unknown User',
+            date: new Date(apt.date),
+            isCancelled: apt.status === 'cancelled',
+            barberId: apt.barbers?.id
+          };
+        });
+
+        console.log('Formatted appointments:', formattedAppointments);
+        setUserAppointments(formattedAppointments);
+      } catch (error) {
+        console.error('Error fetching user appointments:', error);
+      }
+    };
+
+    fetchUserAppointments();
+  }, [isSignedIn, user]);
+
+  // Update the userReservations memo to handle possible undefined values
+  const userReservations = React.useMemo(() => {
+    if (!isSignedIn || !user || !userAppointments.length) return [];
+
+    console.log('Creating user reservations from:', userAppointments);
+    return userAppointments
+      .filter(apt => apt.date && apt.barberName && apt.time) // Filter out incomplete appointments
+      .map(apt => ({
+        date: apt.date!,
+        time: apt.time,
+        barberName: apt.barberName,
+        profileImage: apt.profileImage || '',
+        isBooked: true,
+        isCancelled: apt.isCancelled || false
+      }));
+  }, [userAppointments, isSignedIn, user]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   console.log('Current dateKey:', dateKey);

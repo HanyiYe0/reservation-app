@@ -3,9 +3,13 @@ import { authMiddleware } from "@clerk/nextjs";
 export default authMiddleware({
   publicRoutes: [
     "/api/barbers",
-    "/api/appointments/getByDate"
+    "/api/appointments/getByDate",
+    "/api/appointments/getUserAppointments"
   ],
-  apiRoutes: ["/api/appointments"]
+  apiRoutes: [
+    "/api/appointments",
+    "/api/appointments/getUserAppointments"
+  ]
 });
 
 export const config = {

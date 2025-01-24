@@ -30,6 +30,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/appointments/getByDate/route.js"
+    ],
+    "/api/appointments/getUserAppointments/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/appointments/getUserAppointments/route.js"
     ]
   }
 }

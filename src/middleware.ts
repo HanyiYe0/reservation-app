@@ -5,7 +5,8 @@ export default authMiddleware({
     "/api/webhooks/clerk", 
     "/api/barbers", 
     "/api/appointments",
-    "/api/appointments/getByDate"
+    "/api/appointments/getByDate",
+    "/api/appointments/getUserAppointments"
   ]
 });
 
