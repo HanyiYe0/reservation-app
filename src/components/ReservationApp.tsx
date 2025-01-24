@@ -90,6 +90,9 @@ const seededRandom = (seed: string) => {
 const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promise<Appointment[]> => {
   console.log('Generating appointments for date:', date);
   const dateStr = format(date, 'yyyy-MM-dd');
+  const now = new Date();
+  const isToday = format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
   
   try {
     // First, fetch existing appointments for this date
@@ -102,9 +105,28 @@ const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promi
 
     const appointments: Appointment[] = [];
     const usedTimeSlots = new Set<string>();
-    const availableTimeSlots = [...TIME_SLOTS];
+    // Filter time slots for today
+    const availableTimeSlots = TIME_SLOTS.filter(timeSlot => {
+      if (!isToday) return true; // Show all slots for future dates
+      
+      // Convert time slot to minutes for comparison
+      const [time, period] = timeSlot.split(' ');
+      const [hours, minutes] = time.split(':').map(Number);
+      let slotMinutes = hours * 60 + minutes;
+      
+      // Adjust for PM times
+      if (period === 'PM' && hours !== 12) {
+        slotMinutes += 12 * 60;
+      }
+      // Adjust for 12 AM
+      if (period === 'AM' && hours === 12) {
+        slotMinutes = 0;
+      }
+      
+      return slotMinutes > currentTime;
+    });
 
-    // First, add existing appointments
+    // First, add existing appointments that aren't in the past
     existingAppointments.forEach(dbApt => {
       // Convert 24h time to 12h time for display
       const time = new Date(`1970-01-01T${dbApt.time_slot}`);
@@ -113,6 +135,17 @@ const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promi
         minute: '2-digit',
         hour12: true
       }).toUpperCase();
+
+      // Skip past appointments for today
+      if (isToday) {
+        const [slotTime, period] = timeSlot.split(' ');
+        const [hours, minutes] = slotTime.split(':').map(Number);
+        let slotMinutes = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) slotMinutes += 12 * 60;
+        if (period === 'AM' && hours === 12) slotMinutes = 0;
+        
+        if (slotMinutes <= currentTime) return;
+      }
 
       usedTimeSlots.add(timeSlot);
       const index = availableTimeSlots.indexOf(timeSlot);
