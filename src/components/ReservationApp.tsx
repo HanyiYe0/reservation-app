@@ -217,6 +217,7 @@ export default function ReservationApp() {
     // Initial reservations data
   ]);
   const [userAppointments, setUserAppointments] = useState<Appointment[]>([]);
+  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(false);
 
   // Fetch barbers when component mounts
   useEffect(() => {
@@ -343,11 +344,13 @@ export default function ReservationApp() {
     
     if (!appointmentsByDate[dateKey]) {
       console.log('No appointments found for date, generating new ones');
+      setIsAppointmentsLoading(true);
       generateInitialAppointments(selectedDate, barbers).then(newAppointments => {
         setAppointmentsByDate(prev => ({
           ...prev,
           [dateKey]: newAppointments
         }));
+        setIsAppointmentsLoading(false);
       });
       return [];
     }
@@ -523,26 +526,55 @@ export default function ReservationApp() {
       <Header />
       <Grid container spacing={4}>
         <Grid item xs={12} md={8}>
-          {currentAppointments.length > 0 && (
-            <Box sx={{ mb: 4 }}>
-              <NextAppointmentCard
-                barberName={currentAppointments[0].barberName}
-                time={currentAppointments[0].time}
-                profileImage={currentAppointments[0].profileImage}
-                isBooked={currentAppointments[0].isBooked}
-                bookedBy={currentAppointments[0].bookedBy}
-                isCancelled={currentAppointments[0].isCancelled}
-                customBookButton={renderBookButton(currentAppointments[0])}
+          {isAppointmentsLoading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+              <Typography>Loading appointments...</Typography>
+            </Box>
+          ) : currentAppointments.length > 0 ? (
+            <>
+              <Box sx={{ mb: 4 }}>
+                <NextAppointmentCard
+                  barberName={currentAppointments[0].barberName}
+                  time={currentAppointments[0].time}
+                  profileImage={currentAppointments[0].profileImage}
+                  isBooked={currentAppointments[0].isBooked}
+                  bookedBy={currentAppointments[0].bookedBy}
+                  isCancelled={currentAppointments[0].isCancelled}
+                  customBookButton={renderBookButton(currentAppointments[0])}
+                />
+              </Box>
+              <AppointmentList 
+                appointments={currentAppointments}
+                onBookingSuccess={handleBookingSuccess}
+                selectedAppointment={selectedAppointment}
+                onAppointmentSelect={handleAppointmentSelect}
+                renderBookButton={renderBookButton}
               />
+            </>
+          ) : (
+            <Box 
+              display="flex" 
+              flexDirection="column"
+              justifyContent="center" 
+              alignItems="center" 
+              minHeight="200px"
+              sx={{ 
+                backgroundColor: 'background.paper',
+                borderRadius: 1,
+                p: 3,
+                textAlign: 'center'
+              }}
+            >
+              <Typography variant="h6" gutterBottom>
+                No Available Time Slots
+              </Typography>
+              <Typography color="text.secondary">
+                {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                  ? "All appointments for today have passed or are fully booked. Please try selecting another date."
+                  : "No appointments available for this date. Please try selecting another date."}
+              </Typography>
             </Box>
           )}
-          <AppointmentList 
-            appointments={currentAppointments}
-            onBookingSuccess={handleBookingSuccess}
-            selectedAppointment={selectedAppointment}
-            onAppointmentSelect={handleAppointmentSelect}
-            renderBookButton={renderBookButton}
-          />
         </Grid>
         <Grid item xs={12} md={4}>
           <CalendarWidget
