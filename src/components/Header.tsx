@@ -18,7 +18,7 @@ const Header: React.FC<HeaderProps> = ({ selectedDate }) => {
   return (
     <Box sx={{ textAlign: 'center', mb: 4 }}>
       <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold', mb: 1 }}>
-        Scheduled Times
+        Appointments Dashboard
       </Typography>
       <Box 
         sx={{ 
