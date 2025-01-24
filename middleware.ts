@@ -4,7 +4,8 @@ export default authMiddleware({
   publicRoutes: [
     "/api/barbers",
     "/api/appointments/getByDate",
-    "/api/appointments/getUserAppointments"
+    "/api/appointments/getUserAppointments",
+    "/api/appointments/cancel"
   ],
   apiRoutes: [
     "/api/appointments",

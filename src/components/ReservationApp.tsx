@@ -105,6 +105,7 @@ const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promi
 
     const appointments: Appointment[] = [];
     const usedTimeSlots = new Set<string>();
+
     // Filter time slots for today
     const availableTimeSlots = TIME_SLOTS.filter(timeSlot => {
       if (!isToday) return true; // Show all slots for future dates
@@ -126,7 +127,7 @@ const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promi
       return slotMinutes > currentTime;
     });
 
-    // First, add existing appointments that aren't in the past
+    // First, add existing appointments
     existingAppointments.forEach(dbApt => {
       // Convert 24h time to 12h time for display
       const time = new Date(`1970-01-01T${dbApt.time_slot}`);
@@ -160,7 +161,8 @@ const generateInitialAppointments = async (date: Date, barbers: Barber[]): Promi
         isBooked: true,
         bookedBy: dbApt.users.name,
         date: new Date(dbApt.date),
-        isCancelled: false
+        isCancelled: dbApt.status === 'cancelled',
+        barberId: dbApt.barbers.id
       });
     });
 
@@ -285,6 +287,15 @@ export default function ReservationApp() {
         
         // Convert the appointments to our frontend format
         const formattedAppointments = data.map((apt: DBAppointment) => {
+          // Parse the date string and create a new Date object
+          const appointmentDate = new Date(apt.date + 'T00:00:00');
+          console.log('Processing appointment date:', {
+            original: apt.date,
+            parsed: appointmentDate,
+            isoString: appointmentDate.toISOString(),
+            localString: appointmentDate.toLocaleDateString()
+          });
+
           // Convert 24h time to 12h time for display
           const time = new Date(`1970-01-01T${apt.time_slot}`);
           const timeSlot = time.toLocaleTimeString('en-US', {
@@ -299,7 +310,7 @@ export default function ReservationApp() {
             profileImage: apt.barbers?.profile_picture || '',
             isBooked: true,
             bookedBy: apt.users?.name || 'Unknown User',
-            date: new Date(apt.date),
+            date: appointmentDate,
             isCancelled: apt.status === 'cancelled',
             barberId: apt.barbers?.id
           };
@@ -322,14 +333,25 @@ export default function ReservationApp() {
     console.log('Creating user reservations from:', userAppointments);
     return userAppointments
       .filter(apt => apt.date && apt.barberName && apt.time) // Filter out incomplete appointments
-      .map(apt => ({
-        date: apt.date!,
-        time: apt.time,
-        barberName: apt.barberName,
-        profileImage: apt.profileImage || '',
-        isBooked: true,
-        isCancelled: apt.isCancelled || false
-      }));
+      .map(apt => {
+        // Ensure the date is properly set to midnight to avoid timezone issues
+        const normalizedDate = new Date(format(apt.date!, 'yyyy-MM-dd') + 'T00:00:00');
+        console.log('Normalizing date:', {
+          original: apt.date,
+          normalized: normalizedDate,
+          isoString: normalizedDate.toISOString(),
+          localString: normalizedDate.toLocaleDateString()
+        });
+        
+        return {
+          date: normalizedDate,
+          time: apt.time,
+          barberName: apt.barberName,
+          profileImage: apt.profileImage || '',
+          isBooked: true,
+          isCancelled: apt.isCancelled || false
+        };
+      });
   }, [userAppointments, isSignedIn, user]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
@@ -399,6 +421,9 @@ export default function ReservationApp() {
         throw new Error(errorData.error || 'Failed to create appointment');
       }
 
+      const responseData = await response.json();
+      console.log('Booking response:', responseData);
+
       // Update local state
       setAppointmentsByDate(prev => {
         const newState = {
@@ -419,6 +444,21 @@ export default function ReservationApp() {
         return newState;
       });
 
+      // Immediately update userAppointments with the new booking
+      const newAppointment = {
+        time: timeSlot,
+        barberName: selectedAppointment.barberName,
+        profileImage: selectedAppointment.profileImage,
+        isBooked: true,
+        bookedBy: userName,
+        date: selectedDate,
+        isCancelled: false,
+        barberId: selectedAppointment.barberId
+      };
+
+      setUserAppointments(prev => [...prev, newAppointment]);
+      console.log('Added new appointment to userAppointments:', newAppointment);
+
       setShowModal(false);
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -426,34 +466,88 @@ export default function ReservationApp() {
     }
   };
 
-  const handleCancelReservation = (date: Date, time: string, isCancelled: boolean) => {
+  const handleCancelReservation = async (date: Date, time: string) => {
     const dateKey = format(date, 'yyyy-MM-dd');
     console.log('=== Starting Cancellation Process ===');
-    console.log('Cancelling appointment:', { dateKey, time, isCancelled });
-    
-    setAppointmentsByDate(prev => {
+    console.log('Original date:', date);
+    console.log('Formatted date:', dateKey);
+    console.log('Cancelling appointment:', { dateKey, time });
+
+    try {
+      // Convert 12-hour time to 24-hour format for the backend
+      const [timeStr, period] = time.split(' ');
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      let hour24 = hours;
+      if (period === 'PM' && hours !== 12) hour24 += 12;
+      if (period === 'AM' && hours === 12) hour24 = 0;
+      const time24 = `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+
+      console.log('Converted time:', time24);
+
+      // Call the cancel endpoint
+      const response = await fetch('/api/appointments/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: dateKey,
+          time_slot: time24,
+          user_email: user?.primaryEmailAddress?.emailAddress
+        }),
+      });
+
+      const responseData = await response.json();
+      console.log('Cancel response:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to cancel appointment');
+      }
+
+      // Update local state
+      setAppointmentsByDate(prev => {
         const newState = { ...prev };
-        
         if (newState[dateKey]) {
-            newState[dateKey] = newState[dateKey].map(apt => {
-                if (apt.time === time) {
-                    return {
-                        ...apt,
-                        isCancelled: true,
-                        isBooked: true, // Keep it booked but marked as cancelled
-                    };
-                }
-                return apt;
-            });
+          newState[dateKey] = newState[dateKey].map(apt => {
+            if (apt.time === time) {
+              return {
+                ...apt,
+                isCancelled: true,
+                isBooked: true, // Keep it booked but marked as cancelled
+              };
+            }
+            return apt;
+          });
         }
-        
         return newState;
-    });
-    
-    const currentDateKey = format(selectedDate, 'yyyy-MM-dd');
-    if (currentDateKey === dateKey) {
+      });
+
+      // Update userAppointments state
+      setUserAppointments(prev => 
+        prev.map(apt => {
+          if (apt.date && format(apt.date, 'yyyy-MM-dd') === dateKey && apt.time === time) {
+            return {
+              ...apt,
+              isCancelled: true
+            };
+          }
+          return apt;
+        })
+      );
+
+      // Refresh the current date's appointments if needed
+      const currentDateKey = format(selectedDate, 'yyyy-MM-dd');
+      if (currentDateKey === dateKey) {
         console.log('Cancelled appointment is on current date, forcing refresh');
-        setSelectedDate(new Date(selectedDate.getTime()));
+        const newAppointments = await generateInitialAppointments(selectedDate, barbers);
+        setAppointmentsByDate(prev => ({
+          ...prev,
+          [currentDateKey]: newAppointments
+        }));
+      }
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      // You might want to show an error message to the user here
     }
   };
 
@@ -612,7 +706,7 @@ export default function ReservationApp() {
         open={showReservations}
         onClose={() => setShowReservations(false)}
         reservations={userReservations}
-        onCancelReservation={(date, time) => handleCancelReservation(date, time, true)}
+        onCancelReservation={(date, time) => handleCancelReservation(date, time)}
       />
     </Container>
   );

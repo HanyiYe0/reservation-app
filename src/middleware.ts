@@ -6,7 +6,8 @@ export default authMiddleware({
     "/api/barbers", 
     "/api/appointments",
     "/api/appointments/getByDate",
-    "/api/appointments/getUserAppointments"
+    "/api/appointments/getUserAppointments",
+    "/api/appointments/cancel"
   ]
 });
 
