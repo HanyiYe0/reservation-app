@@ -382,6 +382,14 @@ export default function ReservationApp() {
     return appointments;
   }, [dateKey, appointmentsByDate, selectedDate, isInitialized, barbers]);
 
+  // Find the next available appointment
+  const nextAvailableAppointment = React.useMemo(() => {
+    if (!currentAppointments.length) return null;
+    
+    // Find the first appointment that isn't booked or cancelled
+    return currentAppointments.find(apt => !apt.isBooked && !apt.isCancelled) || currentAppointments[0];
+  }, [currentAppointments]);
+
   const handleAppointmentSelect = (appointment: Appointment) => {
     if (!isSignedIn) {
       return;
@@ -638,17 +646,19 @@ export default function ReservationApp() {
               </Box>
             ) : currentAppointments.length > 0 ? (
               <>
-                <Box sx={{ mb: 4 }}>
-                  <NextAppointmentCard
-                    barberName={currentAppointments[0].barberName}
-                    time={currentAppointments[0].time}
-                    profileImage={currentAppointments[0].profileImage}
-                    isBooked={currentAppointments[0].isBooked}
-                    bookedBy={currentAppointments[0].bookedBy}
-                    isCancelled={currentAppointments[0].isCancelled}
-                    customBookButton={renderBookButton(currentAppointments[0])}
-                  />
-                </Box>
+                {nextAvailableAppointment && (
+                  <Box sx={{ mb: 4 }}>
+                    <NextAppointmentCard
+                      barberName={nextAvailableAppointment.barberName}
+                      time={nextAvailableAppointment.time}
+                      profileImage={nextAvailableAppointment.profileImage}
+                      isBooked={nextAvailableAppointment.isBooked}
+                      bookedBy={nextAvailableAppointment.bookedBy}
+                      isCancelled={nextAvailableAppointment.isCancelled}
+                      customBookButton={renderBookButton(nextAvailableAppointment)}
+                    />
+                  </Box>
+                )}
                 <AppointmentList 
                   appointments={currentAppointments}
                   onBookingSuccess={handleBookingSuccess}
