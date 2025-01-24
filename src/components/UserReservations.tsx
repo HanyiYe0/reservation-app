@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,7 +12,8 @@ import {
   Typography,
   Box,
   CircularProgress,
-  IconButton
+  IconButton,
+  DialogProps
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { format } from 'date-fns';
@@ -26,7 +27,7 @@ interface Reservation {
   isCancelled?: boolean;
 }
 
-interface UserReservationsProps {
+interface UserReservationsProps extends Omit<DialogProps, 'onClose'> {
   open: boolean;
   onClose: () => void;
   reservations: Reservation[];
@@ -39,7 +40,8 @@ const UserReservations: React.FC<UserReservationsProps> = ({
   onClose,
   reservations,
   onCancelReservation,
-  isCancelling
+  isCancelling,
+  ...dialogProps
 }) => {
   const sortedReservations = [...reservations].sort((a, b) => {
     const dateTimeA = new Date(`${format(a.date, 'yyyy/MM/dd')} ${a.time}`);
@@ -47,11 +49,30 @@ const UserReservations: React.FC<UserReservationsProps> = ({
     return dateTimeA.getTime() - dateTimeB.getTime();
   });
 
+  const handleClose = (event: {}, reason: 'backdropClick' | 'escapeKeyDown') => {
+    if (reason !== 'backdropClick') {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={handleClose}
+      maxWidth="sm" 
+      fullWidth
+      {...dialogProps}
+      slotProps={{
+        backdrop: {
+          sx: {
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
         <DialogTitle>My Reservations</DialogTitle>
-        <IconButton onClick={onClose}>
+        <IconButton onClick={onClose} size="large" edge="end">
           <CloseIcon />
         </IconButton>
       </Box>

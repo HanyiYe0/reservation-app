@@ -675,30 +675,7 @@ export default function ReservationApp() {
             </Typography>
             {isAppointmentsLoading ? (
               <LoadingAppointmentsSkeleton />
-            ) : currentAppointments.length > 0 ? (
-              <>
-                {nextAvailableAppointment && (
-                  <Box sx={{ mb: 4 }}>
-                    <NextAppointmentCard
-                      barberName={nextAvailableAppointment.barberName}
-                      time={nextAvailableAppointment.time}
-                      profileImage={nextAvailableAppointment.profileImage}
-                      isBooked={nextAvailableAppointment.isBooked}
-                      bookedBy={nextAvailableAppointment.bookedBy}
-                      isCancelled={nextAvailableAppointment.isCancelled}
-                      customBookButton={renderBookButton(nextAvailableAppointment)}
-                    />
-                  </Box>
-                )}
-                <AppointmentList 
-                  appointments={currentAppointments}
-                  onBookingSuccess={handleBookingSuccess}
-                  selectedAppointment={selectedAppointment}
-                  onAppointmentSelect={handleAppointmentSelect}
-                  renderBookButton={renderBookButton}
-                />
-              </>
-            ) : (
+            ) : isInitialized && currentAppointments.length === 0 ? (
               <Box 
                 display="flex" 
                 flexDirection="column"
@@ -721,6 +698,31 @@ export default function ReservationApp() {
                     : "No appointments available for this date. Please try selecting another date."}
                 </Typography>
               </Box>
+            ) : !isInitialized ? (
+              <LoadingAppointmentsSkeleton />
+            ) : (
+              <>
+                {nextAvailableAppointment && (
+                  <Box sx={{ mb: 4 }}>
+                    <NextAppointmentCard
+                      barberName={nextAvailableAppointment.barberName}
+                      time={nextAvailableAppointment.time}
+                      profileImage={nextAvailableAppointment.profileImage}
+                      isBooked={nextAvailableAppointment.isBooked}
+                      bookedBy={nextAvailableAppointment.bookedBy}
+                      isCancelled={nextAvailableAppointment.isCancelled}
+                      customBookButton={renderBookButton(nextAvailableAppointment)}
+                    />
+                  </Box>
+                )}
+                <AppointmentList 
+                  appointments={currentAppointments}
+                  onBookingSuccess={handleBookingSuccess}
+                  selectedAppointment={selectedAppointment}
+                  onAppointmentSelect={handleAppointmentSelect}
+                  renderBookButton={renderBookButton}
+                />
+              </>
             )}
           </Box>
         </Grid>
