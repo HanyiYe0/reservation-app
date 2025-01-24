@@ -2,7 +2,5 @@
   "/api/barbers/route": "app/api/barbers/route.js",
   "/api/appointments/getUserAppointments/route": "app/api/appointments/getUserAppointments/route.js",
   "/api/appointments/getByDate/route": "app/api/appointments/getByDate/route.js",
-  "/api/appointments/cancel/route": "app/api/appointments/cancel/route.js",
-  "/api/appointments/route": "app/api/appointments/route.js",
   "/page": "app/page.js"
 }

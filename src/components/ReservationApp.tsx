@@ -12,6 +12,7 @@ import { format, isToday, isTomorrow, isThisWeek, addWeeks, isSameWeek } from 'd
 import BookingModal from './BookingModal';
 import React from 'react';
 import UserReservations from './UserReservations';
+import { LoadingBarbersSkeleton, LoadingAppointmentsSkeleton } from './LoadingSkeletons';
 
 // Define the Barber interface
 interface Barber {
@@ -660,13 +661,7 @@ export default function ReservationApp() {
   };
 
   if (isLoading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-          <Typography>Loading barbers...</Typography>
-        </Box>
-      </Container>
-    );
+    return <LoadingBarbersSkeleton />;
   }
 
   return (
@@ -679,9 +674,7 @@ export default function ReservationApp() {
               Scheduled Times
             </Typography>
             {isAppointmentsLoading ? (
-              <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                <Typography>Loading appointments...</Typography>
-              </Box>
+              <LoadingAppointmentsSkeleton />
             ) : currentAppointments.length > 0 ? (
               <>
                 {nextAvailableAppointment && (
